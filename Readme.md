@@ -41,7 +41,9 @@ Qtimeit tries to be careful about self-calibrating and subtracting its own overh
 from the measured results.  The time to invoke the test function is not included as
 part of the reported time, only the time to run its body.  (For very fast-running
 function this can result in absurd or even negative rates, because node timing is
-affected by the state of the heap and thus not overly deterministic.)
+affected by the state of the heap and thus not overly deterministic.  Sometimes the
+function body may have been optimized away, so make sure the test has a side-effect
+so it cannot be skipped.)
 
 To avoid potentially misleading timings, also run the test on just a single cpu.
 Nodejs will at times run with multiple internal threads active that use more than
