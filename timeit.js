@@ -186,7 +186,7 @@ function timeit( nloops, f, msg, callback ) {
 function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
     console.log(name);
     var j = 0;
-    var t1, t2, min, max;
+    var t1, t2, rateMin, rateMax;
     var totalCallCount = 0, totalRunTime = 0, totalElapsedTime = 0;
     function repeatWhile( test, visitor, callback ) {
         if (test()) {
@@ -206,18 +206,16 @@ function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
             timeit(nloops, f, function(err, ncalls, elapsed) {
                 t2 = timeit.fptime();
                 totalElapsedTime += t2 - t1;
-                if (min === undefined || elapsed < min) min = elapsed;
-                if (max === undefined || elapsed > max) max = elapsed;
                 totalCallCount += ncalls;
                 totalRunTime += elapsed;
+                var rate = ncalls / elapsed;
+                if (rateMin === undefined || rate < rateMin) rateMin = rate;
+                if (rateMax === undefined || rate > rateMax) rateMax = rate;
                 next(err);
             });
         },
         function(err) {
-            // item processing rate, adjusted for the 1 calibration run made by timeit()
-            var rateMin = totalCallCount * nItemsPerRun / repeats / max             * ((totalCallCount + 1) / totalCallCount);
-            var rateMax = totalCallCount * nItemsPerRun / repeats / min             * ((totalCallCount + 1) / totalCallCount);
-            var rateAvg = totalCallCount * nItemsPerRun / repeats / (totalRunTime / repeats) * ((totalCallCount + 1) / totalCallCount);
+            var rateAvg = totalCallCount * nItemsPerRun / totalRunTime;
             console.log("Total runtime %s of %s elapsed", formatFloat(totalRunTime, 3), formatFloat(totalElapsedTime, 3));
             console.log("item rate min-max-avg %s %s %s", formatFloat(rateMin, 2), formatFloat(rateMax, 2), formatFloat(rateAvg, 2));
             if (err) throw err;
