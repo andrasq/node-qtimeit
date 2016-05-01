@@ -33,6 +33,10 @@ If a callback is provided the user-provied callback will be called after the tes
 has been run `count` times.  The testFunction itself will be invoked with a
 callback that the test must call for timeit to finish.
 
+Note that timing functions taking callbacks does not yet subtract out all the test
+loop overhead and under-reports the actual throughput.  With callbacks it is good
+to loop inside the testFunction as well, to amortize the overhead.
+
 
 Notes on Timing
 ---------------
