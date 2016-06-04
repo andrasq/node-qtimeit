@@ -20,6 +20,8 @@ module.exports = timeit;
 module.exports.reportit = reportit;
 module.exports.fptime = fptime;
 module.exports.runit = runit;
+module.exports.bench = bench;
+module.exports.benchTimeGoal = 4.00;
 
 if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
 
@@ -150,6 +152,8 @@ function timeit( nloops, f, msg, callback ) {
 
         var __duration = (__t2 - __t1 - __timerOverhead - (__loopOverhead * __callCount * 0.000001));
         if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, msg ? msg : "");
+
+        return {count: __callCount, elapsed: __duration };
     }
     else {
         // if callback is specified, chain the calls to not run them in parallel
@@ -187,7 +191,7 @@ function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
     console.log(name);
     var j = 0;
     var t1, t2, rateMin, rateMax;
-    var totalCallCount = 0, totalRunTime = 0, totalElapsedTime = 0;
+    var totalCallCount = 0, totalRunTime = 0, totalWallclockTime = 0;
     function repeatWhile( test, visitor, callback ) {
         if (test()) {
             visitor(function(err){
@@ -205,7 +209,7 @@ function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
             t1 = timeit.fptime();
             timeit(nloops, f, function(err, ncalls, elapsed) {
                 t2 = timeit.fptime();
-                totalElapsedTime += t2 - t1;
+                totalWallclockTime += t2 - t1;
                 totalCallCount += ncalls;
                 totalRunTime += elapsed;
                 var rate = ncalls / elapsed;
@@ -216,10 +220,144 @@ function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
         },
         function(err) {
             var rateAvg = totalCallCount * nItemsPerRun / totalRunTime;
-            console.log("Total runtime %s of %s elapsed", formatFloat(totalRunTime, 3), formatFloat(totalElapsedTime, 3));
+            console.log("Total runtime %s of %s elapsed", formatFloat(totalRunTime, 3), formatFloat(totalWallclockTime, 3));
             console.log("item rate min-max-avg %s %s %s", formatFloat(rateMin, 2), formatFloat(rateMax, 2), formatFloat(rateAvg, 2));
             if (err) throw err;
             if (callback) callback();
         }
     );
+}
+
+var fs = require('fs');
+var os = require('os');
+
+function sysinfo( ) {
+    var mhz = 0;
+    function maxSpeed(cpus) {
+        for (var i=0; i<cpus.length; i++) if (cpus[i].speed > mhz) mhz = cpus[i].speed;
+        return mhz;
+    }
+    var sysinfo = {
+        nodeTitle: process.title,               // 'node'
+        nodeVersion: process.versions.node,     // '5.10.1'
+        v8Version: process.versions.v8,         // '4.6.85.31'
+        platform: process.platform,             // 'linux'
+        arch: process.arch,                     // 'ia32'
+        kernel: os.release(),                   // `uname -r`
+        cpu: os.cpus()[0].model,                // `grep '^model name' /proc/cpuinfo`
+        cpuMhz: maxSpeed(os.cpus()),
+        cpuCount: os.cpus().length,             // `grep -c '^model name' /proc/cpuinfo`
+        cpuUpThreshold: fs.readFileSync("/sys/devices/system/cpu/cpufreq/ondemand/up_threshold").toString().trim(),
+    };
+    return sysinfo;
+}
+
+function bench( functions, callback ) {
+    function computeDigest( results ) {
+        var min = Infinity, max = -Infinity, rate = 0, count = 0, elapsed = 0;
+        var icount, ielapsed, nsamples = 0;
+        for (var i=0; i<results.length; i++) {
+            icount = results[i].count;
+            count += icount;
+            ielapsed = results[i].elapsed;
+            if (ielapsed > 0) {
+                elapsed += ielapsed;
+                rate = icount / ielapsed;
+                nsamples += 1;
+                if (rate < min) min = rate;
+                if (rate > max) max = rate;
+            }
+            else {
+                console.log("negative runtime not summed");
+            }
+        }
+        var avg = count / elapsed;
+        return {
+          min: min,
+          max: max,
+          avg: avg,
+          count: count,
+          elapsed: elapsed,
+          runs: results.length,
+          stats: results,
+        }
+    }
+
+    function calibrateLoopCount( test ) {
+        var loops = [ 1, 5, 10, 50, 100, 500, 1000, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7 ];
+        timeit(1, test, '/* NOOUTPUT */');
+        var t1, t2, nloops = 1, ret;
+        for (var i=0; i<loops.length; i++) {
+            nloops = loops[i];
+            t1 = timeit.fptime();
+            ret = timeit(nloops, test, '/* NOOUTPUT */');
+            t2 = timeit.fptime();
+            var duration = t2 - t1;
+            if (ret.elapsed > 0.02 || duration > 0.05) break;
+        }
+//console.log("AR: calibrate nloops:", duration, nloops);
+        return 10 * nloops;
+    }
+
+    function runTest( test, cb ) {
+        var timeGoal = module.exports.benchTimeGoal || 6.00;
+        var startTime = timeit.fptime();
+        var endTime = timeit.fptime() + timeGoal;
+        var results = [];
+
+        if (!cb) {
+            var tm = timeit.fptime(); test(); tm = timeit.fptime() - tm;
+            var nloops = calibrateLoopCount(test);
+            do {
+                var result = timeit(nloops, test, "/* NOOUTPUT */");
+                results.push(result);
+            } while (timeit.fptime() < endTime);
+//console.log(results.slice(0, 5));
+            var duration = timeit.fptime() - startTime;
+            var digest = computeDigest(results);
+            digest.duration = duration;
+            digest.nloops = nloops;
+            return digest;
+        }
+        else {
+            // TODO: callbacked version
+        }
+    }
+
+    function number_format( value ) {
+        var chars = ('' + value).split('');
+        var s = "";
+        while (chars.length) {
+            var c3 = chars.pop();
+            var c2 = chars.pop() || '';
+            var c1 = chars.pop() || '';
+            s = c1 + c2 + c3 + (s ? ',' : '') + s;
+        }
+        return s;
+    }
+
+    function number_scale( value ) {
+        if (value > 1000000) return (value / 1000000) + 'm';
+        if (value > 1000) return (value / 1000) + 'k';
+        return value;
+    }
+
+    var sys = sysinfo();
+    var results = [];
+    var tests = {};
+    if (Array.isArray(functions)) for (var i=0; i<functions.length; i++) tests['#'+(i+1)] = functions[i];
+    else tests = functions;
+    console.log('node=%s arch=%s mhz=%d cpu="%s" up_threshold=%d',
+        sys.nodeVersion, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
+    console.log('name  speed  (stats)  rate');
+    for (var name in tests) {
+        var res = runTest(tests[name]);
+        results.push({ name: name, results: res });
+        console.log("%s  %s k/s (%d runs of %s, +/- %d%%) %d",
+            name, number_format((res.avg / 1000 + 0.5) >>> 0), res.runs, number_scale(res.nloops), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
+            ((1000 * results[0].results.avg / res.avg + 0.5) >>> 0));
+    }
+
+//console.log(sys);
+//console.log(results);
 }
