@@ -32,6 +32,16 @@ function fptime() {
     return t[0] + t[1] * 0.000000001;
 }
 
+function repeatWhile( test, visitor, callback ) {
+    if (test()) {
+        visitor(function(err){
+            if (err) return callback(err);
+            else setImmediate(function(){ repeatWhile(test, visitor, callback) });
+        });
+    }
+    else return callback();
+}
+
 // 0.01357 => 0.014
 function formatFloat( value, decimals ) {
     var power = 1, sign = '';
@@ -44,6 +54,22 @@ function formatFloat( value, decimals ) {
     while (digits.length <= decimals) digits = "0" + digits;
     return sign + digits.slice(0, -decimals) + '.' + digits.slice(-decimals);
 }
+
+function number_format( value ) {
+    value = value + '';
+    var i, j, s = "";
+    for (j=0, i=value.length%3; j<value.length; j=i, i+=3) {
+        s += s ? ',' + value.slice(j, i) : value.slice(j, i);
+    }
+    return s;
+}
+
+function number_scale( value ) {
+    if (value > 1000000) return (value / 1000000) + 'm';
+    if (value > 1000) return (value / 1000) + 'k';
+    return value;
+}
+
 
 // print run timing results
 function reportit( f, nloops, __duration, msg ) {
@@ -192,15 +218,7 @@ function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
     var j = 0;
     var t1, t2, rateMin, rateMax;
     var totalCallCount = 0, totalRunTime = 0, totalWallclockTime = 0;
-    function repeatWhile( test, visitor, callback ) {
-        if (test()) {
-            visitor(function(err){
-                if (err) return callback(err);
-                else setImmediate(function(){ repeatWhile(test, visitor, callback) });
-            });
-        }
-        else return callback();
-    }
+
     repeatWhile(
         function() {
             return j++ < repeats;
@@ -293,14 +311,14 @@ function bench( functions, callback ) {
             ret = timeit(nloops, test, '/* NOOUTPUT */');
             t2 = timeit.fptime();
             var duration = t2 - t1;
-            if (ret.elapsed > 0.02 || duration > 0.05) break;
+            if (ret.elapsed > 0.04 || duration > 0.10) break;
         }
 //console.log("AR: calibrate nloops:", duration, nloops);
         return 10 * nloops;
     }
 
     function runTest( test, cb ) {
-        var timeGoal = module.exports.benchTimeGoal || 6.00;
+        var timeGoal = +module.exports.benchTimeGoal || 4.00;
         var startTime = timeit.fptime();
         var endTime = timeit.fptime() + timeGoal;
         var results = [];
@@ -324,24 +342,6 @@ function bench( functions, callback ) {
         }
     }
 
-    function number_format( value ) {
-        var chars = ('' + value).split('');
-        var s = "";
-        while (chars.length) {
-            var c3 = chars.pop();
-            var c2 = chars.pop() || '';
-            var c1 = chars.pop() || '';
-            s = c1 + c2 + c3 + (s ? ',' : '') + s;
-        }
-        return s;
-    }
-
-    function number_scale( value ) {
-        if (value > 1000000) return (value / 1000000) + 'm';
-        if (value > 1000) return (value / 1000) + 'k';
-        return value;
-    }
-
     var sys = sysinfo();
     var results = [];
     var tests = {};
@@ -355,7 +355,7 @@ function bench( functions, callback ) {
         results.push({ name: name, results: res });
         console.log("%s  %s k/s (%d runs of %s, +/- %d%%) %d",
             name, number_format((res.avg / 1000 + 0.5) >>> 0), res.runs, number_scale(res.nloops), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
-            ((1000 * results[0].results.avg / res.avg + 0.5) >>> 0));
+            ((1000 * res.avg / results[0].results.avg + 0.5) >>> 0));
     }
 
 //console.log(sys);
