@@ -169,15 +169,18 @@ function timeit( nloops, f, msg, callback ) {
     var __i, __fn = (typeof f === 'function' ? f : makeFunction(f));
     var __t1, __t2, __callCount = 0;
     var __nleft;
+    var __stopTime, __timedRun = false;
     if (typeof msg === 'function') { callback = msg; msg = undefined; }
 
     if (nloops !== null && nloops <= 0) {
         if (callback) callback(null, 0, 0);
-        return;
+        return { count: 0, elapsed: 0 };
     }
 
     // if the loop count is a decimal, repeat for that many seconds
     if (nloops % 1 !== 0) {
+        __timedRun = true;
+        __stopTime = nloops; // + t1 later
         setTimeout(function(){
             nloops = __callCount;
             __nleft = 0;
@@ -189,6 +192,7 @@ function timeit( nloops, f, msg, callback ) {
     // and optimization would make the overhead less predictable.
     try { } catch (e) { }
 
+    // TODO: try calibrating every run, instead of just once at the very start.
     if (__timerOverhead === undefined) {
         // calibrate, then use the measured overhead to re-calibrate more accurately
         calibrate();
@@ -202,13 +206,20 @@ function timeit( nloops, f, msg, callback ) {
         __fn();
 
         __t1 = fptime();
-        for (__i=0; __i<nloops; ++__i) {
+        __stopTime += __t1;
+        for (__i=0; __i<nloops; __i++) {
             __callCount += 1;
             __fn();
+            if ((__callCount & 0xFFF) === 0 && __timedRun && fptime() >= __stopTime) break;
         }
         __t2 = fptime();
 
         var __duration = (__t2 - __t1 - __timerOverhead - (__loopOverhead * __callCount * 0.000001));
+        if (__timedRun) {
+            // TODO: timed runs are reported as running 20-30% slower than counted runs
+            var timedRunOverhead = (Math.floor(__callCount / 4096) + 1) * __timerOverhead;
+            __duration -= timedRunOverhead;
+        }
         if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
 
         return {count: __callCount, elapsed: __duration };
