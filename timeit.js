@@ -85,8 +85,8 @@ function reportit( f, nloops, __duration, totalSeconds, msg ) {
 }
 
 var __timerOverhead;            // ms to make 1 fptime call
-var __loopOverhead;             // ms to make 1000 test function calls
-var __loopOverheadCb;           // ms to make 1000 test function calls with callback
+var __loopOverhead;             // ms to make 1000k test function calls
+var __loopOverheadCb;           // ms to make 1000k test function calls with callback
 function dummy( ) { }
 function calibrate( ) {
     var i, t1, t2;
@@ -108,7 +108,7 @@ function calibrate( ) {
     for (i=0; i<5000; i++) t2 = fptime();
     __timerOverhead = (t2 - t1) / 5000;
 
-    // time test overhead without callback
+    // time test overhead without callback, per million calls
     t1 = fptime();
     timeit(4000000, ";", '/* NOOUTPUT */');
     t2 = fptime();
@@ -177,11 +177,11 @@ function timeit( nloops, f, msg, callback ) {
     }
 
     // if the loop count is a decimal, repeat for that many seconds
-    if (nloops !== (nloops | 0)) {
+    if (nloops % 1 !== 0) {
         setTimeout(function(){
             nloops = __callCount;
             __nleft = 0;
-        }, (nloops * 1000) | 0);
+        }, Math.round(nloops * 1000));
         nloops = Infinity;
     }
 
