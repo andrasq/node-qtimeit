@@ -75,11 +75,11 @@ function number_scale( value ) {
 
 
 // print run timing results
-function reportit( f, nloops, __duration, msg ) {
+function reportit( f, nloops, __duration, totalSeconds, msg ) {
     var __rate = nloops/__duration;
     var m1 = (msg ? msg+" " : "")
     process.stdout.write((msg ? msg+" " : "") + '"' + f + '": ');
-    process.stdout.write(nloops + " loops in " + formatFloat(__duration, 4) + " sec: ");
+    process.stdout.write(nloops + " loops in " + formatFloat(__duration, 4) + " of " + formatFloat(totalSeconds, 2) + " sec: ");
     process.stdout.write(formatFloat(__rate, 2) + " / sec, " + formatFloat(__duration/nloops*1000, 6) + " ms each");
     process.stdout.write("\n");
 }
@@ -209,7 +209,7 @@ function timeit( nloops, f, msg, callback ) {
         __t2 = fptime();
 
         var __duration = (__t2 - __t1 - __timerOverhead - (__loopOverhead * __callCount * 0.000001));
-        if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, msg ? msg : "");
+        if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
 
         return {count: __callCount, elapsed: __duration };
     }
@@ -238,7 +238,7 @@ function timeit( nloops, f, msg, callback ) {
                         else {
                             __t2 = fptime();
                             var __duration = (__t2 - __t1 - (__timerOverhead > 0 ? __timerOverhead : 0) - (__loopOverheadCb * __callCount * 0.000001));
-                            if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, msg ? msg : "");
+                            if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
                             callback(null, __callCount, __duration);
                         }
                     }
