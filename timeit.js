@@ -94,6 +94,11 @@ function calibrate( ) {
     // turn off calibration for our internal timeit() runs
     __timerOverhead = -1;
 
+    // Note: for calibration, x = [1,2,3] runs at 91-92m/s and x = new Array() at 74-75m/s
+    // Remember to subtract out loop overhead (.15 sec per 100m) and node startup (.05 sec).
+    // Note: node optimizes and de-optimizes functions on the fly.  Need to also
+    // time the de-optimized version, and get a sense of the split between them.
+
     // warm up cache
     for (i=0; i<2000; i++) fptime();
     timeit(1000000, ";", '/* NOOUTPUT */');
@@ -109,11 +114,35 @@ function calibrate( ) {
     t2 = fptime();
     __loopOverhead = (t2 - t1) / 4;
 
-    // time test overhead with callback
-    t1 = fptime();
-    timeit(4000000, function(cb){ }, '/* NOOUTPUT */');
-    t2 = fptime();
-    __loopOverheadCb = (t2 - t1) / 4;
+    // disable optimization of this function
+    try { } catch (e) { }
+
+/*  // disable inlining of this function
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+*/
+}
+
+function calibrateCb( nloops, cb ) {
+    if (nloops < 1000000) nloops = 2000000;
+    else if (nloops > 10000000) nloops = 10000000;
+
+    var saveTimerOverhead = __timerOverhead;
+    __timerOverhead = -1;
+    for (var i=0; i<1000; i++) timeit(10, function(cb){ cb() }, '/* NOOUTPUT */', function(){});
+
+    // time test overhead with callback, per million calls
+    var t1 = fptime();
+    timeit(nloops, function(cb){ cb() }, '/* NOOUTPUT */', function(){
+        var t2 = fptime();
+        __loopOverheadCb = (t2 - t1) / (nloops / 1000000);
+        __timerOverhead = saveTimerOverhead;
+        cb();
+    });
 
     // disable optimization of this function
     try { } catch (e) { }
@@ -185,32 +214,39 @@ function timeit( nloops, f, msg, callback ) {
         return {count: __callCount, elapsed: __duration };
     }
     else {
-        // if callback is specified, chain the calls to not run them in parallel
-        // run __fn twice to prime the v8 compiler, then run the timed test
-        __fn( function() {
+        function maybeCalibrate(cb) {
+            if (__timerOverhead >= 0) calibrateCb(nloops < Infinity ? nloops : 4000000, cb);
+            else cb();
+        }
+        maybeCalibrate(function() {
+            // if callback is specified, chain the calls to not run them in parallel
+            // run __fn twice to prime the v8 compiler, then run the timed test
             __fn( function() {
-                // timed test begins here, called after two runs of __fn
-                __nleft = nloops;
-                var __depth = 0;
-                var __t1 = fptime();
-                (function __launchNext() {
-                    if (__nleft) {
-                        __nleft -= 1;
-                        __depth += 1;
-                        __callCount += 1;
-                        __fn(function(){
-                            // TODO: only loops 15m/s, vs the above 150m/s
-                            if (__depth > 500) { __depth = 0; setImmediate(__launchNext); }
-                            else __launchNext();
-                        });
+                __fn( function() {
+                    // timed test begins here, called after two runs of __fn
+                    __nleft = nloops;
+                    var __depth = 0;
+                    var __t1 = fptime();
+                    __launchNext();
+                    function __launchNext() {
+                        if (__nleft) {
+                            __nleft -= 1;
+                            __depth += 1;
+                            __callCount += 1;
+                            __fn(__onTestDone);
+                        }
+                        else {
+                            __t2 = fptime();
+                            var __duration = (__t2 - __t1 - (__timerOverhead > 0 ? __timerOverhead : 0) - (__loopOverheadCb * __callCount * 0.000001));
+                            if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, msg ? msg : "");
+                            callback(null, __callCount, __duration);
+                        }
                     }
-                    else {
-                        __t2 = fptime();
-                        var __duration = (__t2 - __t1 - __timerOverhead - (__loopOverheadCb * __callCount * 0.000001));
-                        if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, msg ? msg : "");
-                        callback(null, __callCount, __duration);
+                    function __onTestDone() {
+                        if (__depth > 500) { __depth = 0; setImmediate(__launchNext); }
+                        else __launchNext();
                     }
-                })();
+                });
             });
         });
     }
