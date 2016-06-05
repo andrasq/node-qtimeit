@@ -23,6 +23,7 @@ module.exports.runit = runit;
 module.exports.bench = bench;
 module.exports.benchTimeGoal = 4.00;
 
+
 if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
 
 function fptime() {
@@ -50,11 +51,12 @@ function formatFloat( value, decimals ) {
     if (value < 0) { sign = '-'; value = -value; }
     for (var i = 0; i < decimals; i++) power *= 10;
     var digits = Math.floor(value * power + 0.5).toString();
-    // right-pad the fraction with trailing zeroes as needed
+    // left-pad a fraction with leading zeroes as needed
     while (digits.length <= decimals) digits = "0" + digits;
     return sign + digits.slice(0, -decimals) + '.' + digits.slice(-decimals);
 }
 
+// 12345 => 12,345
 function number_format( value ) {
     value = value + '';
     var i, j, s = "";
@@ -64,6 +66,7 @@ function number_format( value ) {
     return s;
 }
 
+// 100000 => 100k
 function number_scale( value ) {
     if (value > 1000000) return (value / 1000000) + 'm';
     if (value > 1000) return (value / 1000) + 'k';
@@ -353,8 +356,9 @@ function bench( functions, callback ) {
     for (var name in tests) {
         var res = runTest(tests[name]);
         results.push({ name: name, results: res });
-        console.log("%s  %s k/s (%d runs of %s, +/- %d%%) %d",
-            name, number_format((res.avg / 1000 + 0.5) >>> 0), res.runs, number_scale(res.nloops), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
+        console.log("%s  %s k/s (%d runs of %s in %s of %ss, +/- %d%%) %d",
+            name, number_format((res.avg / 1000 + 0.5) >>> 0),
+            res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
             ((1000 * res.avg / results[0].results.avg + 0.5) >>> 0));
     }
 
