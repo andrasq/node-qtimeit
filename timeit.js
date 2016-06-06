@@ -21,7 +21,6 @@ module.exports.reportit = reportit;
 module.exports.fptime = fptime;
 module.exports.runit = runit;
 module.exports.bench = bench;
-module.exports.benchTimeGoal = 4.00;
 
 
 if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
@@ -102,6 +101,7 @@ function calibrate( ) {
     __timerOverhead = -1;
 
     // Note: for calibration, x = [1,2,3] runs at 91-92m/s and x = new Array() at 74-75m/s
+    // (nb: but "x = [1,2,3]; x" runs at only 87m/s ? Optimizer effects?)
     // Remember to subtract out loop overhead (.15 sec per 100m) and node startup (.05 sec).
     // Note: node optimizes and de-optimizes functions on the fly.  Need to also
     // time the de-optimized version, and get a sense of the split between them.
@@ -338,7 +338,7 @@ function sysinfo( ) {
     return sysinfo;
 }
 
-function bench( functions, callback ) {
+function bench( /* options?, */ functions, callback ) {
     function computeDigest( results ) {
         var min = Infinity, max = -Infinity, rate = 0, count = 0, elapsed = 0;
         var icount, ielapsed, nsamples = 0;
@@ -379,14 +379,14 @@ function bench( functions, callback ) {
             ret = timeit(nloops, test, '/* NOOUTPUT */');
             t2 = timeit.fptime();
             var duration = t2 - t1;
-            if (ret.elapsed > 0.04 || duration > 0.10) break;
+            if (ret.elapsed > 0.01 || duration > 0.01) break;
         }
 //console.log("AR: calibrate nloops:", duration, nloops);
         return 10 * nloops;
     }
 
     function runTest( test, cb ) {
-        var timeGoal = +module.exports.benchTimeGoal || 4.00;
+        var timeGoal = 4.00;
         var startTime = timeit.fptime();
         var endTime = timeit.fptime() + timeGoal;
         var results = [];
@@ -421,8 +421,8 @@ function bench( functions, callback ) {
     for (var name in tests) {
         var res = runTest(tests[name]);
         results.push({ name: name, results: res });
-        console.log("%s  %s k/s (%d runs of %s in %s of %ss, +/- %d%%) %d",
-            name, number_format((res.avg / 1000 + 0.5) >>> 0),
+        console.log("%s  %s / sec (%d runs of %s in %s over %ss, +/- %d%%) %d",
+            name, number_format(res.avg >>> 0),
             res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
             ((1000 * res.avg / results[0].results.avg + 0.5) >>> 0));
     }
