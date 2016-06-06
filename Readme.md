@@ -37,6 +37,40 @@ Note that timing functions taking callbacks does not yet subtract out all the te
 loop overhead and under-reports the actual throughput.  With callbacks it is good
 to loop inside the testFunction as well, to amortize the overhead.
 
+### timeit.bench( suite )
+
+Run each of the functions in the suite and report timings and relative throughput.
+The suite can be an array of functions, or an object where the properties are
+test functions and the property names are the test names to report on.
+
+        $ node -p 'var x; var timeit = require("qtimeit");
+        >   timeit.bench([
+        >     function(){ x = [1,2,3] },
+        >     function(){ x = new Array(3) }
+        >   ]);'
+
+        node=5.10.1 arch=ia32 mhz=3500 cpu="AMD Phenom(tm) II X4 B55 Processor" up_threshold=11
+        name  speed  (stats)  rate
+        #1  95,667,718 / sec (28 runs of 5m in 1.463 over 4.033s, +/- 3.84%) 1000
+        #2  75,944,758 / sec (28 runs of 5m in 1.843 over 4.122s, +/- 1.18%) 794
+
+
+Accuracy
+--------
+
+It is possible to spot-check the reported rates from the command line, eg (with csh)
+
+        % time node -p 'var x; for (var i=0; i<100000000; i++) ;'
+        undefined
+        0.212u 0.000s 0:00.21 100.0%    0+0k 0+0io 0pf+0w
+
+        % time node -p 'var x; for (var i=0; i<100000000; i++) x = [1,2,3];'
+        [ 1, 2, 3 ]
+        1.296u 0.012s 0:01.30 100.0%    0+0k 0+0io 0pf+0w
+
+        % echo '100000000 / (1.30 - .21)' | bc
+        91743119
+
 
 Notes on Timing
 ---------------
