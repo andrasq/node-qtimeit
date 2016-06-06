@@ -16,7 +16,7 @@ Time which version of the code runs faster.
 Api
 ---
 
-### timeit( count, testFunction(), [message] )
+### timeit( countOrSeconds, testFunction(), [message] )
 
 Call the testFunction `count` times, and report on its performance.
 If the testFunction is a string it will be parsed into a function object.
@@ -27,15 +27,11 @@ seconds instead.  The report will include the actual number of loops run.
 If a message is provided, it will be included at the start of the report line.
 
 
-### timeit( count, testFunction(cb), [message,] callback )
+### timeit( countOrSeconds, testFunction(cb), [message,] callback )
 
 If a callback is provided the user-provied callback will be called after the test
 has been run `count` times.  The testFunction itself will be invoked with a
 callback that the test must call for timeit to finish.
-
-Note that timing functions taking callbacks does not yet subtract out all the test
-loop overhead and under-reports the actual throughput.  With callbacks it is good
-to loop inside the testFunction as well, to amortize the overhead.
 
 ### timeit.bench( suite )
 
