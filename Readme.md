@@ -50,6 +50,15 @@ test functions and the property names are the test names to report on.
         #1  95,667,718 / sec (28 runs of 5m in 1.463 over 4.033s, +/- 3.84%) 1000
         #2  75,944,758 / sec (28 runs of 5m in 1.843 over 4.122s, +/- 1.18%) 794
 
+The reported fields are the test name (`#1` etc, or the property name from the suite
+object), the test speed in calls / second, statistics about the test runs (count of
+timeit runs, timeit nloops, seconds used by the tests, total seconds elapsed, speed
+run-to-run variability), and the normalized call rate.  The normalized call rate is
+the relative speed rank of each test.  The first test is always 1000, the other tests
+are proportionately higher if they ran more calls, or lower if they ran fewer calls
+per second than the first test.  (E.g. above: 75,945k / 95,668k = 0.7938, ie "794"
+compared to the first test's "1000".)
+
 
 Accuracy
 --------
