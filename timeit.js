@@ -84,10 +84,17 @@ function reportit( f, nloops, __duration, totalSeconds, msg ) {
     process.stdout.write("\n");
 }
 
+
 var __timerOverhead;            // ms to make 1 fptime call
 var __loopOverhead;             // ms to make 1000k test function calls
 var __loopOverheadCb;           // ms to make 1000k test function calls with callback
-function dummy( ) { }
+function timeFunc( n, fn ) {
+    var t1 = fptime();
+    for (var i=0; i<n; i++) fn();
+    var t2 = fptime();
+    return t2 - t1;
+    try { } catch (e) { }
+}
 function calibrate( ) {
     var i, t1, t2;
 
@@ -98,21 +105,29 @@ function calibrate( ) {
     // Remember to subtract out loop overhead (.15 sec per 100m) and node startup (.05 sec).
     // Note: node optimizes and de-optimizes functions on the fly.  Need to also
     // time the de-optimized version, and get a sense of the split between them.
+    // For more consistent (and accurate) timings, run the test by count for 0.05 seconds.
+    // This seems to run +- 5% and avoids the weird outliers that range +- 25% from 92m/s.
+    // (tests that do more work per call are less sensitive to overhead errors, of course)
+    var x, count = 0;
+    function testNoop() {}
+    function testFunc(){ }
+    //function testFunc() { count += 1; x = count + count; }
 
     // warm up cache
     for (i=0; i<2000; i++) fptime();
-    timeit(1000000, ";", '/* NOOUTPUT */');
+    for (var i=0; i<100; i++) timeit(100, testFunc, '/* NOOUTPUT */');
 
-    // time fptime overhead
-    t1 = fptime();
-    for (i=0; i<5000; i++) t2 = fptime();
-    __timerOverhead = (t2 - t1) / 5000;
+    // calibrate the function calls and the work done in the test function
+    var callTime = timeFunc(4000000, testNoop) / 4;
+    var testWorkTime = timeFunc(4000000, testFunc) / 4 - callTime;
+
+    // time fptime overhead, seconds for one call
+    __timerOverhead = timeFunc(500, function(){ t2 = fptime() }) / 500;
 
     // time test overhead without callback, per million calls
-    t1 = fptime();
-    timeit(4000000, ";", '/* NOOUTPUT */');
-    t2 = fptime();
-    __loopOverhead = (t2 - t1) / 4;
+    var timeitTime = timeFunc(1, function(){ timeit(4000000, testFunc, '/* NOOUTPUT */') }) / 4;
+    //__loopOverhead = timeitTime - testWorkTime;
+    __loopOverhead = timeitTime;
 
     // disable optimization of this function
     try { } catch (e) { }
@@ -138,6 +153,8 @@ function calibrateCb( nloops, cb ) {
     // time test overhead with callback, per million calls
     var t1 = fptime();
     timeit(nloops, function(cb){ cb() }, '/* NOOUTPUT */', function(){
+        // note: let the test func run 0.1 sec or more, else overstimates 92m/s rate by 25%
+        // Note: passing a separately defined testFunc to timeit here _under_estimates the rate by 75%.
         var t2 = fptime();
         __loopOverheadCb = (t2 - t1) / (nloops / 1000000);
         __timerOverhead = saveTimerOverhead;
@@ -186,6 +203,7 @@ function timeit( nloops, f, msg, callback ) {
             __nleft = 0;
         }, Math.round(nloops * 1000));
         nloops = Infinity;
+        // TODO: a timed-duration callback test reports only half the throughput, 92m/s -> 43m/s
     }
 
     // disable optimization of this function.  Its overhead is subtracted out,
@@ -195,7 +213,6 @@ function timeit( nloops, f, msg, callback ) {
     // TODO: try calibrating every run, instead of just once at the very start.
     if (__timerOverhead === undefined) {
         // calibrate, then use the measured overhead to re-calibrate more accurately
-        calibrate();
         calibrate();
         calibrate();
     }
@@ -216,7 +233,7 @@ function timeit( nloops, f, msg, callback ) {
 
         var __duration = (__t2 - __t1 - __timerOverhead - (__loopOverhead * __callCount * 0.000001));
         if (__timedRun) {
-            // TODO: timed runs are reported as running 20-30% slower than counted runs
+            // TODO: when timed, a 92m/s test is reported as running 20-30% slower than when counted
             var timedRunOverhead = (Math.floor(__callCount / 4096) + 1) * __timerOverhead;
             __duration -= timedRunOverhead;
         }
@@ -226,6 +243,7 @@ function timeit( nloops, f, msg, callback ) {
     }
     else {
         function maybeCalibrate(cb) {
+            // calibrate unless already calibrating
             if (__timerOverhead >= 0) calibrateCb(nloops < Infinity ? nloops : 4000000, cb);
             else cb();
         }
