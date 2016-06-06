@@ -323,6 +323,7 @@ function sysinfo( ) {
         for (var i=0; i<cpus.length; i++) if (cpus[i].speed > mhz) mhz = cpus[i].speed;
         return mhz;
     }
+    var up_threshold = "/sys/devices/system/cpu/cpufreq/ondemand/up_threshold";
     var sysinfo = {
         nodeTitle: process.title,               // 'node'
         nodeVersion: process.versions.node,     // '5.10.1'
@@ -333,7 +334,7 @@ function sysinfo( ) {
         cpu: os.cpus()[0].model,                // `grep '^model name' /proc/cpuinfo`
         cpuMhz: maxSpeed(os.cpus()),
         cpuCount: os.cpus().length,             // `grep -c '^model name' /proc/cpuinfo`
-        cpuUpThreshold: fs.readFileSync("/sys/devices/system/cpu/cpufreq/ondemand/up_threshold").toString().trim(),
+        cpuUpThreshold: fs.existsSync(up_threshold) && fs.readFileSync(up_threshold).toString().trim(),
     };
     return sysinfo;
 }
