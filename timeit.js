@@ -190,8 +190,8 @@ function timeit( nloops, f, msg, callback ) {
     if (typeof msg === 'function') { callback = msg; msg = undefined; }
 
     if (nloops !== null && nloops <= 0) {
-        if (callback) callback(null, 0, 0);
-        return { count: 0, elapsed: 0 };
+        if (callback) callback(null, 0, 0, 0);
+        return { count: 0, elapsed: 0, wallclock: 0 };
     }
 
     // if the loop count is a decimal, repeat for that many seconds
@@ -239,7 +239,7 @@ function timeit( nloops, f, msg, callback ) {
         }
         if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
 
-        return {count: __callCount, elapsed: __duration };
+        return {count: __callCount, elapsed: __duration, wallclock: __t2 - __t1 };
     }
     else {
         function maybeCalibrate(cb) {
@@ -268,7 +268,7 @@ function timeit( nloops, f, msg, callback ) {
                             __t2 = fptime();
                             var __duration = (__t2 - __t1 - (__timerOverhead > 0 ? __timerOverhead : 0) - (__loopOverheadCb * __callCount * 0.000001));
                             if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
-                            callback(null, __callCount, __duration);
+                            callback(null, __callCount, __duration, __t2 - __t1);
                         }
                     }
                     function __onTestDone() {
@@ -282,7 +282,6 @@ function timeit( nloops, f, msg, callback ) {
 }
 
 function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
-    console.log(name);
     var j = 0;
     var t1, t2, rateMin, rateMax;
     var totalCallCount = 0, totalRunTime = 0, totalWallclockTime = 0;
@@ -370,36 +369,59 @@ function bench( /* options?, */ functions, callback ) {
         }
     }
 
-    function calibrateLoopCount( test ) {
+    function calibrateLoopCount( test, cb ) {
         var loops = [ 1, 5, 10, 50, 100, 500, 1000, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7 ];
-        timeit(1, test, '/* NOOUTPUT */');
         var t1, t2, nloops = 1, ret;
-        for (var i=0; i<loops.length; i++) {
-            nloops = loops[i];
-            t1 = timeit.fptime();
-            ret = timeit(nloops, test, '/* NOOUTPUT */');
-            t2 = timeit.fptime();
-            var duration = t2 - t1;
-            if (ret.elapsed > 0.01 || duration > 0.01) break;
+        if (!cb) {
+            timeit(1, test, '/* NOOUTPUT */');
+            for (var i=0; i<loops.length; i++) {
+                nloops = loops[i];
+                t1 = timeit.fptime();
+                ret = timeit(nloops, test, '/* NOOUTPUT */');
+                t2 = timeit.fptime();
+                var duration = t2 - t1;
+                if (ret.elapsed > 0.01 || duration > 0.01) break;
+            }
+            return 10 * nloops;
         }
-//console.log("AR: calibrate nloops:", duration, nloops);
-        return 10 * nloops;
+        else {
+            var i = 0;
+            timeit(10, test, '/* NOOUTPUT */', function(err) {
+                repeatWhile(
+                    function() {
+                        return (i < loops.length);
+                    },
+                    function(next) {
+                        nloops = loops[i];
+                        // note that callbacked timeit re-calibrates on each call, so picking a loop count is slow (2 sec)
+                        timeit(nloops, test, '/* NOOUTPUT */', function(err, callCount, cpuTime, realTime) {
+                            i++;
+                            // fake an error when time to stop the repeatWhile loop
+                            next(cpuTime > 0.10 || realTime > 0.10);
+                        })
+                    },
+                    function(err) {
+                        cb(null, nloops);
+                    }
+                );
+            });
+        }
     }
 
     function runTest( test, cb ) {
         var timeGoal = 4.00;
         var startTime = timeit.fptime();
-        var endTime = timeit.fptime() + timeGoal;
+        var endTime;
         var results = [];
 
         if (!cb) {
             var tm = timeit.fptime(); test(); tm = timeit.fptime() - tm;
             var nloops = calibrateLoopCount(test);
+            endTime = timeit.fptime() + timeGoal;
             do {
                 var result = timeit(nloops, test, "/* NOOUTPUT */");
                 results.push(result);
             } while (timeit.fptime() < endTime);
-//console.log(results.slice(0, 5));
             var duration = timeit.fptime() - startTime;
             var digest = computeDigest(results);
             digest.duration = duration;
@@ -407,8 +429,37 @@ function bench( /* options?, */ functions, callback ) {
             return digest;
         }
         else {
-            // TODO: callbacked version
+            calibrateLoopCount(test, function(err, nloops) {
+                if (err) return cb(err);
+                endTime = timeit.fptime() + timeGoal;
+                repeatWhile(
+                    function() {
+                        return (fptime() < endTime);
+                    },
+                    function(next) {
+                        timeit(nloops, test, "/* NOOUTPUT */", function(err, callCount, cpuTime) {
+                            if (err) return next(err);
+                            results.push({ count: callCount, elapsed: cpuTime });
+                            next();
+                        })
+                    },
+                    function(err) {
+                        var duration = timeit.fptime() - startTime;
+                        var digest = computeDigest(results);
+                        digest.duration = duration;
+                        digest.nloops = nloops;
+                        cb(null, digest);
+                    }
+                )
+            });
         }
+    }
+
+    function reportResult( name, test, res, res0 ) {
+        console.log("%s  %s / sec (%d runs of %s in %s over %ss, +/- %d%%) %d",
+            name, number_format(res.avg >>> 0),
+            res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
+            ((1000 * res.avg / res0.avg + 0.5) >>> 0));
     }
 
     var sys = sysinfo();
@@ -419,13 +470,35 @@ function bench( /* options?, */ functions, callback ) {
     console.log('node=%s arch=%s mhz=%d cpu="%s" up_threshold=%d',
         sys.nodeVersion, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
     console.log('name  speed  (stats)  rate');
-    for (var name in tests) {
-        var res = runTest(tests[name]);
-        results.push({ name: name, results: res });
-        console.log("%s  %s / sec (%d runs of %s in %s over %ss, +/- %d%%) %d",
-            name, number_format(res.avg >>> 0),
-            res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
-            ((1000 * res.avg / results[0].results.avg + 0.5) >>> 0));
+    if (!callback) {
+        for (var name in tests) {
+            var res = runTest(tests[name]);
+            results.push({ name: name, results: res });
+            console.log("%s  %s / sec (%d runs of %s in %s over %ss, +/- %d%%) %d",
+                name, number_format(res.avg >>> 0),
+                res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
+                ((1000 * res.avg / results[0].results.avg + 0.5) >>> 0));
+        }
+    }
+    else {
+        var testNames = Object.keys(tests);
+        repeatWhile(
+            function() {
+                return testNames.length > 0;
+            },
+            function(next) {
+                var testName = testNames.shift();
+                var test = tests[testName];
+                //process.stdout.write(testName + " ");
+                runTest(test, function(err, res) {
+                    results.push({ name: testName, results: res });
+                    reportResult(testName, test, res, results[0].results);
+                })
+            },
+            function(err) {
+                if (err) throw err;
+            }
+        );
     }
 
 //console.log(sys);
