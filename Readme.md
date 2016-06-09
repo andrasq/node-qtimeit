@@ -1,18 +1,23 @@
 qtimeit
 =======
 
-Simple performance profiling tool for both synchronous and asynchronous functions
+Simple performance profiling tool for both synchronous and asynchronous functions,
 usable to micro-benchmark nodejs language features.
 
-- self-calibrating, can time the speed of even really quick nodejs operations
-- can measure functions taking a callback
-- supports comparative benchmarking of a suite of test functions
+- sensitive enough to time even really fast nodejs operations
+- measures just the body of the test function, not the function call
+- self-calibrating, does not include its own overhead in the results
+- works with both synchronous functions and functions taking a callback
+- allows comparative benchmarking a suite of test functions
 
-Calibrates and measures by repeatedly running the test function.
+Calibrates and measures by repeatedly running the test function, so avoid
+unintended side effects.
 
 
 Overview
 --------
+
+Examples of a one-off micro benchmark and a benchmark suite
 
         var x, y;
         var timeit = require('qtimeit');
@@ -24,8 +29,8 @@ Overview
             function() { x = [1, 2, 3]; },
             function() { x = [1, 2, 3]; y = [4, 5, 6]; }
         ]);
-        // #1  93,246,313 / sec (31 runs of 5m in 1.662 over 4.382s, +/- 1.93%) 1000
-        // #2  46,234,886 / sec (22 runs of 5m in 2.379 over 4.117s, +/- 1.6%) 496
+        // #1  93,468,158 / sec (31 runs of 5m in 1.658 over 4.373s, +/- 2.16%) 1000
+        // #2  47,414,812 / sec (22 runs of 5m in 2.320 over 4.059s, +/- 1.94%) 507
 
 
 Api
@@ -70,8 +75,10 @@ functions.
             function() { x = [1, 2, 3]; },
             function() { x = [1, 2, 3]; y = [4, 5, 6]; }
         ]);
-        // #1  93,246,313 / sec (31 runs of 5m in 1.662 over 4.382s, +/- 1.93%) 1000
-        // #2  46,234,886 / sec (22 runs of 5m in 2.379 over 4.117s, +/- 1.6%) 496
+        // node=5.10.1 arch=ia32 mhz=3500 cpu="AMD Phenom(tm) II X4 B55 Processor" up_threshold=11
+        // name  speed  (stats)  rate
+        // #1  93,468,158 / sec (31 runs of 5m in 1.658 over 4.373s, +/- 2.16%) 1000
+        // #2  47,414,812 / sec (22 runs of 5m in 2.320 over 4.059s, +/- 1.94%) 507
 
 
 The reported fields are the test name (`#1` etc, or the property name from the suite
@@ -80,7 +87,7 @@ timeit runs, timeit nloops, seconds used by the tests, total seconds elapsed, sp
 run-to-run variability), and the normalized call rate.  The normalized call rate is
 the relative speed rank of each test.  The first test is always 1000, the other tests
 are proportionately higher if they ran more calls, or lower if they ran fewer calls
-per second than the first test.  (E.g. above: 75,945k / 95,668k = 0.7938, ie "794"
+per second than the first test.  (E.g. above: 47,415k / 93,468k = 0.5072, ie "507"
 compared to the first test's "1000".)
 
 
@@ -168,6 +175,7 @@ Related Work
 
 - [qtimeit](http://github.com/andrasq/node-qtimeit) - this one
 - [benchmark](http://npmjs.org/package/benchmark) - a popular benchmarking module
+- [qbson](http://github.com/andrasq/node-qbson) - BSON encode/decode functions whose timings prompted `timeit.bench()`
 
 
 Todo
