@@ -1,7 +1,32 @@
 qtimeit
 =======
 
-Time which version of the code runs faster.
+Simple performance profiling tool for both synchronous and asynchronous functions.
+
+- self-calibrating, can time the speed of even the fastest nodejs operations
+- can measure functions taking a callback
+- supports comparative benchmarking of a suite of test functions
+
+Calibrates and measures by repeatedly running the test function.
+
+
+Api
+---
+
+### timeit( countOrSeconds, testFunction(), [message] )
+### timeit( countOrSeconds, testFunction(cb), [message,] callback )
+
+Call the testFunction `count` times, and report on its performance.
+If the testFunction is a string it will be parsed into a function object.
+
+If `count` is a decimal (has a fraction), the test will be looped for that many
+seconds instead.  The report will include the actual number of loops run.
+
+If a message is provided, it will be included at the start of the report line.
+
+If a callback is provided the user-provied callback will be called after the test
+has been run `count` times.  The testFunction itself will be invoked with a
+callback that the test must call for timeit to finish.
 
         timeit = require('timeit');
 
@@ -12,32 +37,15 @@ Time which version of the code runs faster.
         timeit(10000000, function(){ x = new Array(3); });
         // => 10000000 loops in 0.1310 sec: 76345256.78 / sec
 
-
-Api
----
-
-### timeit( countOrSeconds, testFunction(), [message] )
-
-Call the testFunction `count` times, and report on its performance.
-If the testFunction is a string it will be parsed into a function object.
-
-If `count` is a decimal (has a fraction), the test will be looped for that many
-seconds instead.  The report will include the actual number of loops run.
-
-If a message is provided, it will be included at the start of the report line.
-
-
-### timeit( countOrSeconds, testFunction(cb), [message,] callback )
-
-If a callback is provided the user-provied callback will be called after the test
-has been run `count` times.  The testFunction itself will be invoked with a
-callback that the test must call for timeit to finish.
-
-### timeit.bench( suite )
+### timeit.bench( suite [,callback] )
 
 Run each of the functions in the suite and report timings and relative throughput.
 The suite can be an array of functions, or an object where the properties are
 test functions and the property names are the test names to report on.
+
+Bench works with both synchronous (no callback) and asynchronous (yes callback)
+functions.
+
 
         $ node -p 'var x; var timeit = require("qtimeit");
         >   timeit.bench([
