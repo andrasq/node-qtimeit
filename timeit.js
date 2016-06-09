@@ -146,7 +146,7 @@ function calibrateCb( nloops, cb ) {
     if (nloops < 1000000) nloops = 2000000;
     else if (nloops > 10000000) nloops = 10000000;
 
-    var saveTimerOverhead = __timerOverhead;
+    var savedTimerOverhead = __timerOverhead;
     __timerOverhead = -1;
     for (var i=0; i<1000; i++) timeit(10, function(cb){ cb() }, '/* NOOUTPUT */', function(){});
 
@@ -157,7 +157,7 @@ function calibrateCb( nloops, cb ) {
         // Note: passing a separately defined testFunc to timeit here _under_estimates the rate by 75%.
         var t2 = fptime();
         __loopOverheadCb = (t2 - t1) / (nloops / 1000000);
-        __timerOverhead = saveTimerOverhead;
+        __timerOverhead = savedTimerOverhead;
         cb();
     });
 
@@ -217,6 +217,12 @@ function timeit( nloops, f, msg, callback ) {
         calibrate();
     }
 
+    function maybeCalibrateCb(cb) {
+        // calibrate unless already calibrating
+        if (__timerOverhead >= 0) calibrateCb(nloops < Infinity ? nloops : 4000000, cb);
+        else cb();
+    }
+
     if (!callback) {
         // node v0.11.x strongly penalizes parsing the function in the timed loop; v0.10 did not.
         // Run the test function once to pre-parse it
@@ -242,12 +248,7 @@ function timeit( nloops, f, msg, callback ) {
         return {count: __callCount, elapsed: __duration, wallclock: __t2 - __t1 };
     }
     else {
-        function maybeCalibrate(cb) {
-            // calibrate unless already calibrating
-            if (__timerOverhead >= 0) calibrateCb(nloops < Infinity ? nloops : 4000000, cb);
-            else cb();
-        }
-        maybeCalibrate(function() {
+        maybeCalibrateCb(function() {
             // if callback is specified, chain the calls to not run them in parallel
             // run __fn twice to prime the v8 compiler, then run the timed test
             __fn( function() {
@@ -331,7 +332,7 @@ function sysinfo( ) {
         arch: process.arch,                     // 'ia32'
         kernel: os.release(),                   // `uname -r`
         cpu: os.cpus()[0].model,                // `grep '^model name' /proc/cpuinfo`
-        cpuMhz: maxSpeed(os.cpus()),
+        cpuMhz: maxSpeed(os.cpus()),            // `grep 'MHz' /proc/cpuinfo`
         cpuCount: os.cpus().length,             // `grep -c '^model name' /proc/cpuinfo`
         cpuUpThreshold: fs.existsSync(up_threshold) && fs.readFileSync(up_threshold).toString().trim(),
     };
@@ -371,6 +372,7 @@ function bench( /* options?, */ functions, callback ) {
 
     function calibrateLoopCount( test, cb ) {
         var loops = [ 1, 5, 10, 50, 100, 500, 1000, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7 ];
+// TODO: instead of trying counts, time nloops = 1, estimate 0.05 sec, time estimated .01 sec, re-estimate
         var t1, t2, nloops = 1, ret;
         if (!cb) {
             timeit(1, test, '/* NOOUTPUT */');
@@ -397,19 +399,19 @@ function bench( /* options?, */ functions, callback ) {
                         timeit(nloops, test, '/* NOOUTPUT */', function(err, callCount, cpuTime, realTime) {
                             i++;
                             // fake an error when time to stop the repeatWhile loop
-                            next(cpuTime > 0.10 || realTime > 0.10);
+                            next(cpuTime > 0.02 || realTime > 0.05);
                         })
                     },
                     function(err) {
-                        cb(null, nloops);
+                        // callbacked runs have higher overhead, amortize with more loops
+                        cb(null, 4 * nloops);
                     }
                 );
             });
         }
     }
 
-    function runTest( test, cb ) {
-        var timeGoal = 4.00;
+    function runTest( timeGoal, test, cb ) {
         var startTime = timeit.fptime();
         var endTime;
         var results = [];
@@ -462,6 +464,7 @@ function bench( /* options?, */ functions, callback ) {
             ((1000 * res.avg / res0.avg + 0.5) >>> 0));
     }
 
+    var timeGoal = bench.timeGoal || 4.00;
     var sys = sysinfo();
     var results = [];
     var tests = {};
@@ -470,37 +473,25 @@ function bench( /* options?, */ functions, callback ) {
     console.log('node=%s arch=%s mhz=%d cpu="%s" up_threshold=%d',
         sys.nodeVersion, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
     console.log('name  speed  (stats)  rate');
-    if (!callback) {
-        for (var name in tests) {
-            var res = runTest(tests[name]);
-            results.push({ name: name, results: res });
-            console.log("%s  %s / sec (%d runs of %s in %s over %ss, +/- %d%%) %d",
-                name, number_format(res.avg >>> 0),
-                res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
-                ((1000 * res.avg / results[0].results.avg + 0.5) >>> 0));
-        }
-    }
-    else {
-        var testNames = Object.keys(tests);
-        repeatWhile(
-            function() {
-                return testNames.length > 0;
-            },
-            function(next) {
-                var testName = testNames.shift();
-                var test = tests[testName];
-                //process.stdout.write(testName + " ");
-                runTest(test, function(err, res) {
-                    results.push({ name: testName, results: res });
-                    reportResult(testName, test, res, results[0].results);
-                })
-            },
-            function(err) {
-                if (err) throw err;
-            }
-        );
-    }
 
-//console.log(sys);
-//console.log(results);
+    var testNames = Object.keys(tests);
+    repeatWhile(
+        function() {
+            return testNames.length > 0;
+        },
+        function(next) {
+            var testName = testNames.shift();
+            var test = tests[testName];
+            //process.stdout.write(testName + " ");
+            callback ? runTest(timeGoal, test, afterTest) : afterTest(null, runTest(timeGoal, test));
+            function afterTest(err, res) {
+                results.push({ name: testName, results: res });
+                reportResult(testName, test, res, results[0].results);
+                next();
+            }
+        },
+        function(err) {
+            if (callback) callback(err, results);
+        }
+    );
 }

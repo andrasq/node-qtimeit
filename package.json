@@ -1,6 +1,6 @@
 {
   "name": "qtimeit",
-  "version": "0.11.4",
+  "version": "0.11.5",
   "description": "time which version runs faster",
   "main": "index.js",
   "license": "Apache-2.0",
