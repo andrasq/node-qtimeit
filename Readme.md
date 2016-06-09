@@ -10,6 +10,59 @@ Simple performance profiling tool for both synchronous and asynchronous function
 Calibrates and measures by repeatedly running the test function.
 
 
+Overview
+--------
+
+        var x, y;
+        var timeit = require('qtimeit');
+        var benchmark = require('benchmark');
+
+Benchmarking with qtimeit
+
+        timeit.bench([
+            function() { x = [1, 2, 3]; },
+            function() { x = [1, 2, 3]; y = [4, 5, 6]; }
+        ]);
+        // #1  93,246,313 / sec (31 runs of 5m in 1.662 over 4.382s, +/- 1.93%) 1000
+        // #2  46,234,886 / sec (22 runs of 5m in 2.379 over 4.117s, +/- 1.6%) 496
+
+        timeit(40000000, function(){ x = [1, 2, 3]; });
+        // "function (){ x = [1,2,3] }": 400000000 loops in 4.2740 of 10.53 sec: 93588919.12 / sec, 0.000011 ms each
+
+Benchmarking with benchmark
+
+        new benchmark.Suite()
+            .add(function() { x = [1, 2, 3]; })
+            .add(function() { x = [1, 2, 3]; y = [4, 5, 6]; })
+            .on('cycle', function(ev) {
+                console.log(ev.target.toString())
+            })
+            .run();
+        // <Test #1> x 38,281,069 ops/sec ±0.93% (92 runs sampled)
+        // <Test #2> x 25,866,187 ops/sec ±1.48% (93 runs sampled)
+
+
+Benchmarking from the command line to vet the results
+
+        # node startup and loop overhead
+        % time node -p 'var x; for (var i=0; i<100000000; i++) ;'
+        0.208u 0.000s 0:00.21 95.2%     0+0k 0+0io 0pf+0w
+
+        # total time for [1,2,3]
+        % time node -p 'var x; for (var i=0; i<100000000; i++) x = [1,2,3];'
+        1.292u 0.000s 0:01.29 100.0%    0+0k 0+0io 0pf+0w
+
+        # total time for both [1,2,3] and [4,5,6]
+        % time node -p 'var x, y; for (var i=0; i<100000000; i++) { x = [1,2,3]; y = [4,5,6]; }'
+        2.348u 0.004s 0:02.35 99.5%     0+0k 0+0io 0pf+0w
+
+        # speed
+        % echo '100000000 / (1.29 - .21)' | bc
+        92592592
+        % echo '100000000 / (2.35 - .21)' | bc
+        46728971
+
+
 Api
 ---
 
@@ -120,3 +173,10 @@ core.  Eg, for core 3:
 (/sys/devices/system/cpu numbers cpus starting at 0.  The `taskset` core number is
 a bitmask starting at 1, so core1 = 1, core2 = 2, core3 = 4, core4 = 8, etc.  The
 bitmask values can be added to specify any one of a set of cores.)
+
+
+Todo
+----
+
+- tiny command line one-liners can run out of cache and give inflated results
+- need a way to force deoptimization so can time deoptimized version too
