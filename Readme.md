@@ -142,6 +142,8 @@ affected by the state of the heap and thus not overly deterministic.  Sometimes 
 function body may have been optimized away, so make sure the test has a side-effect
 so it cannot be skipped.)
 
+### Cpu Effects
+
 To avoid potentially misleading timings, also run the test on just a single cpu.
 Nodejs will at times run with multiple internal threads active that use more than
 100% total cpu.  This can be defeated by forcing the test to run on a single core.
@@ -169,6 +171,24 @@ core.  Eg, for core 3:
 a bitmask starting at 1, so core1 = 1, core2 = 2, core3 = 4, core4 = 8, etc.  The
 bitmask values can be added to specify any one of a set of cores.)
 
+### Nodejs Effects
+
+Nodejs itself makes benchmarking less than straightforward
+
+- the first `timeit()` run often reports very different numbers than a rerun,
+  for some tests higher, for some lower.  The first run finds a clean heap, but
+  has to allocate memory from the operating system
+- the state of the heap affects timings, so changing the order of tests can change the results
+- heap, garbage collection and function optimization/deoptimization effects can
+  result in a large run-to-run variability
+- the performance of the whole may not match that of the parts measured in isolation
+- some language features (`try`/`catch`, `eval`, passing `arguments`) inentionally
+  disable optimization of the immediately containing function
+- some language quirks inadvertently turn off optimization (eg `const` in the middle
+  of some functions)
+- some latent language bugs can produce function optimize / deoptimize thrashing
+  (eg in sometimes storing a constructor function arg into `this` vs setting it
+  as a property on the object afterward)
 
 Related Work
 ------------
