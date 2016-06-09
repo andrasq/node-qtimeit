@@ -56,7 +56,7 @@ Benchmarking from the command line to vet the results
         % time node -p 'var x, y; for (var i=0; i<100000000; i++) { x = [1,2,3]; y = [4,5,6]; }'
         2.348u 0.004s 0:02.35 99.5%     0+0k 0+0io 0pf+0w
 
-        # speed
+        # operations per second
         % echo '100000000 / (1.29 - .21)' | bc
         92592592
         % echo '100000000 / (2.35 - .21)' | bc
