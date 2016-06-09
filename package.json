@@ -1,7 +1,7 @@
 {
   "name": "qtimeit",
-  "version": "0.11.5",
-  "description": "time which version runs faster",
+  "version": "0.11.6",
+  "description": "easy to use micro-benchmarking toolkit",
   "main": "index.js",
   "license": "Apache-2.0",
   "repository": "git://github.com/andrasq/node-qtimeit",
