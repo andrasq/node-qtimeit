@@ -36,7 +36,8 @@ function repeatWhile( test, visitor, callback ) {
     if (test()) {
         visitor(function(err){
             if (err) return callback(err);
-            else setImmediate(function(){ repeatWhile(test, visitor, callback) });
+            // self-recurse to work with both sync and async tests
+            else repeatWhile(test, visitor, callback);
         });
     }
     else return callback();
