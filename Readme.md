@@ -91,9 +91,9 @@ are proportionately higher if they ran more calls, or lower if they ran fewer ca
 per second than the first test.  (E.g. above: 47,415k / 93,468k = 0.5072, ie "507"
 compared to the first test's "1000".)
 
+### timeit.bench.timeGoal
 
-Comparison
-----------
+How long to loop the each test before computing the average.  Default 4.00 seconds.
 
 
 Comparisons
