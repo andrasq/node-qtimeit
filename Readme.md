@@ -193,8 +193,9 @@ Nodejs itself makes benchmarking less than straightforward
 Related Work
 ------------
 
-- [qtimeit](http://github.com/andrasq/node-qtimeit) - this one
-- [benchmark](http://npmjs.org/package/benchmark) - a popular benchmarking module
+- [qtimeit](http://github.com/andrasq/node-qtimeit) - this package
+- [benchmark](http://npmjs.org/package/benchmark) - a popular benchmarking package
+- [bench](http://npmjs.org/package/bench) - a pretty good benchmarking package
 - [qbson](http://github.com/andrasq/node-qbson) - BSON encode/decode functions whose timings prompted `timeit.bench()`
 
 
