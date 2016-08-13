@@ -7,6 +7,7 @@ usable to micro-benchmark nodejs language features.
 - sensitive enough to time even really fast nodejs operations
 - measures just the body of the test function, not the function call
 - self-calibrating, does not include its own overhead in the results
+- auto-calibrating, can run tests for a specified number of seconds
 - works with both synchronous functions and functions taking a callback
 - allows comparative benchmarking a suite of test functions
 
@@ -94,7 +95,13 @@ compared to the first test's "1000".)
 Comparison
 ----------
 
-Benchmarking with benchmark
+
+Comparisons
+-----------
+
+Testing with node-v5.10.1 (which on this test is 25% faster than node-v6.2.2):
+
+Benchmarking with `benchmark`
 
         var x, y, benchmark = require('benchmark');
         new benchmark.Suite()
@@ -107,10 +114,27 @@ Benchmarking with benchmark
         // <Test #1> x 38,281,069 ops/sec ±0.93% (92 runs sampled)
         // <Test #2> x 25,866,187 ops/sec ±1.48% (93 runs sampled)
 
+Benchmarking with `bench`
 
-In some cases it is possible to double-check the accuracy of the reported speeds
-from short scripts or even from the command line.  The expected is that allocating
-two arrays should run half the speed (take twice as long) as allocating just one.
+        var x, y, bench = require('bench');
+        module.exports.compare = {
+            'one array':  function() { x = [1, 2, 3]; },
+            'two arrays': function() { x = [1, 2, 3]; y = [4, 5, 6]; },
+        };
+        bench.runMain();
+        // one array
+        // Average (mean) 53302.44755244756
+        // two arrays
+        // Average (mean) 33285.46453546454
+
+Both sets of these reported rates seem wrong:  allocating two arrays is twice as
+much work thus should run at half the speed (take twice as long) as allocating just
+one.  The rates are also much lower than the qtimeit.bench-reported 93m and 47m
+operations per second.
+
+Sometimes it's possible to double-check the accuracy of the reported speeds from
+short scripts or even from the command line.  So let's re-measure the rates with a
+barebones timed loop:
 
         # node startup and loop overhead
         % time node -p 'var x; for (var i=0; i<100000000; i++) ;'
@@ -124,11 +148,14 @@ two arrays should run half the speed (take twice as long) as allocating just one
         % time node -p 'var x, y; for (var i=0; i<100000000; i++) { x = [1,2,3]; y = [4,5,6]; }'
         2.348u 0.004s 0:02.35 99.5%     0+0k 0+0io 0pf+0w
 
-        # operations per second
+        # operations per second for the one array and two arrays
         % echo '100000000 / (1.29 - .21)' | bc
         92592592
         % echo '100000000 / (2.35 - .21)' | bc
         46728971
+
+Raw: 92.59m/s.  Benchmark: 38.28m/s, 142% off.  Bench: 53.30m/s, 74% off.
+Qtimeit: 93.47m/s, 1% off.
 
 
 Notes on Timing
@@ -194,8 +221,8 @@ Related Work
 ------------
 
 - [qtimeit](http://github.com/andrasq/node-qtimeit) - this package
-- [benchmark](http://npmjs.org/package/benchmark) - a popular benchmarking package
-- [bench](http://npmjs.org/package/bench) - a pretty good benchmarking package
+- [benchmark](http://npmjs.org/package/benchmark) - a popular benchmarking package, inaccurate
+- [bench](http://npmjs.org/package/bench) - another benchmarking package
 - [qbson](http://github.com/andrasq/node-qbson) - BSON encode/decode functions whose timings prompted `timeit.bench()`
 
 
