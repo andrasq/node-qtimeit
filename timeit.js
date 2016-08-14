@@ -458,14 +458,8 @@ function bench( /* options?, */ functions, callback ) {
         }
     }
 
-    function reportResult( name, test, res, res0 ) {
-        console.log("%s  %s / sec (%d runs of %s in %s over %ss, +/- %d%%) %d",
-            name, number_format(res.avg >>> 0),
-            res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
-            ((1000 * res.avg / res0.avg + 0.5) >>> 0));
-    }
-
     var timeGoal = bench.timeGoal || 4.00;
+    var opsPerTest = bench.opsPerTest || 1;
     var sys = sysinfo();
     var results = [];
     var tests = {};
@@ -486,6 +480,7 @@ function bench( /* options?, */ functions, callback ) {
             //process.stdout.write(testName + " ");
             callback ? runTest(timeGoal, test, afterTest) : afterTest(null, runTest(timeGoal, test));
             function afterTest(err, res) {
+                if (opsPerTest != 1) res.avg = res.count * opsPerTest / res.elapsed;
                 results.push({ name: testName, results: res });
                 reportResult(testName, test, res, results[0].results);
                 next();
@@ -495,4 +490,11 @@ function bench( /* options?, */ functions, callback ) {
             if (callback) callback(err, results);
         }
     );
+
+    function reportResult( name, test, res, res0 ) {
+        console.log("%s  %s ops/sec (%d runs of %s in %s over %ss, +/- %d%%) %d",
+            name, number_format(res.avg >>> 0),
+            res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
+            ((1000 * res.avg / res0.avg + 0.5) >>> 0));
+    }
 }

@@ -95,6 +95,12 @@ compared to the first test's "1000".)
 
 How long to loop the each test before computing the average.  Default 4.00 seconds.
 
+### timeit.bench.opsPerTest
+
+How many operations are performed in each test function, for when the tests
+themselves loop.  The number of ops/sec reported in the summary will be scaled up
+by this value.  Default 1.
+
 
 Comparisons
 -----------
@@ -231,5 +237,3 @@ Todo
 
 - tiny command line one-liners can run out of cache and give inflated results
 - need a way to force deoptimization so can time deoptimized version too
-
-- `scale` option to bench if each benchmark itself loops
