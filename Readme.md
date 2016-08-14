@@ -231,3 +231,5 @@ Todo
 
 - tiny command line one-liners can run out of cache and give inflated results
 - need a way to force deoptimization so can time deoptimized version too
+
+- `scale` option to bench if each benchmark itself loops
