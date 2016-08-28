@@ -492,7 +492,7 @@ function bench( /* options?, */ functions, callback ) {
     );
 
     function reportResult( name, test, res, res0 ) {
-        console.log("%s  %s ops/sec (%d runs of %s in %s over %ss, +/- %d%%) %d",
+        console.log("%s  %s ops/sec (%d runs of %s calls in %s out of %s sec, +/- %d%%) %d",
             name, number_format(res.avg >>> 0),
             res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
             ((1000 * res.avg / res0.avg + 0.5) >>> 0));

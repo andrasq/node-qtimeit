@@ -20,18 +20,18 @@ Overview
 
 Examples of a one-off micro benchmark and a benchmark suite
 
-        var x, y;
-        var timeit = require('qtimeit');
+    var x, y;
+    var timeit = require('qtimeit');
 
-        timeit(10000000, function(){ x = [1, 2, 3]; });
-        // => 10000000 loops in 0.1095 of 0.27 sec: 91299026.24 / sec, 0.000011 ms each
+    timeit(10000000, function(){ x = [1, 2, 3]; });
+    // => 10000000 loops in 0.1095 of 0.27 sec: 91299026.24 / sec, 0.000011 ms each
 
-        timeit.bench([
-            function() { x = [1, 2, 3]; },
-            function() { x = [1, 2, 3]; y = [4, 5, 6]; }
-        ]);
-        // #1  93,468,158 / sec (31 runs of 5m in 1.658 over 4.373s, +/- 2.16%) 1000
-        // #2  47,414,812 / sec (22 runs of 5m in 2.320 over 4.059s, +/- 1.94%) 507
+    timeit.bench([
+        function() { x = [1, 2, 3]; },
+        function() { x = [1, 2, 3]; y = [4, 5, 6]; }
+    ]);
+    // #1  93,468,158 ops/sec (31 runs of 5m calls in 1.658 out of 4.373 sec, +/- 2.16%) 1000
+    // #2  47,414,812 ops/sec (22 runs of 5m calls in 2.320 out of 4.059 sec, +/- 1.94%) 507
 
 
 Api
@@ -53,12 +53,12 @@ has been run `count` times.  The testFunction itself will be invoked with a
 callback that the test must call for timeit to finish.
 
 
-        var x, timeit = require('timeit');
-        timeit(10000000, function(){ x = [1, 2, 3]; });
-        // => 10000000 loops in 0.1095 of 0.27 sec: 91299026.24 / sec, 0.000011 ms each
+    var x, timeit = require('timeit');
+    timeit(10000000, function(){ x = [1, 2, 3]; });
+    // => 10000000 loops in 0.1095 of 0.27 sec: 91299026.24 / sec, 0.000011 ms each
 
-        timeit(10000000, function(cb) { x = [1, 2, 3]; cb() }, function(){});
-        // => 10000000 loops in 0.1107 of 0.52 sec: 90337752.78 / sec, 0.000011 ms each
+    timeit(10000000, function(cb) { x = [1, 2, 3]; cb() }, function(){});
+    // => 10000000 loops in 0.1107 of 0.52 sec: 90337752.78 / sec, 0.000011 ms each
 
 
 ### timeit.bench( suite [,callback] )
@@ -71,15 +71,15 @@ Bench works with both synchronous (no callback) and asynchronous (yes callback)
 functions.
 
 
-        var x, timeit = require('qtimeit');
-        timeit.bench([
-            function() { x = [1, 2, 3]; },
-            function() { x = [1, 2, 3]; y = [4, 5, 6]; }
-        ]);
-        // node=5.10.1 arch=ia32 mhz=3500 cpu="AMD Phenom(tm) II X4 B55 Processor" up_threshold=11
-        // name  speed  (stats)  rate
-        // #1  93,468,158 / sec (31 runs of 5m in 1.658 over 4.373s, +/- 2.16%) 1000
-        // #2  47,414,812 / sec (22 runs of 5m in 2.320 over 4.059s, +/- 1.94%) 507
+    var x, timeit = require('qtimeit');
+    timeit.bench([
+        function() { x = [1, 2, 3]; },
+        function() { x = [1, 2, 3]; y = [4, 5, 6]; }
+    ]);
+    // node=5.10.1 arch=ia32 mhz=3500 cpu="AMD Phenom(tm) II X4 B55 Processor" up_threshold=11
+    // name  speed  (stats)  rate
+    // #1  93,468,158 / sec (31 runs of 5m in 1.658 over 4.373s, +/- 2.16%) 1000
+    // #2  47,414,812 / sec (22 runs of 5m in 2.320 over 4.059s, +/- 1.94%) 507
 
 
 The reported fields are the test name (`#1` etc, or the property name from the suite
@@ -109,29 +109,29 @@ Testing with node-v5.10.1 (which on this test is 25% faster than node-v6.2.2):
 
 Benchmarking with `benchmark`
 
-        var x, y, benchmark = require('benchmark');
-        new benchmark.Suite()
-            .add(function() { x = [1, 2, 3]; })
-            .add(function() { x = [1, 2, 3]; y = [4, 5, 6]; })
-            .on('cycle', function(ev) {
-                console.log(ev.target.toString())
-            })
-            .run();
-        // <Test #1> x 38,281,069 ops/sec ±0.93% (92 runs sampled)
-        // <Test #2> x 25,866,187 ops/sec ±1.48% (93 runs sampled)
+    var x, y, benchmark = require('benchmark');
+    new benchmark.Suite()
+        .add(function() { x = [1, 2, 3]; })
+        .add(function() { x = [1, 2, 3]; y = [4, 5, 6]; })
+        .on('cycle', function(ev) {
+            console.log(ev.target.toString())
+        })
+        .run();
+    // <Test #1> x 38,281,069 ops/sec ±0.93% (92 runs sampled)
+    // <Test #2> x 25,866,187 ops/sec ±1.48% (93 runs sampled)
 
 Benchmarking with `bench`
 
-        var x, y, bench = require('bench');
-        module.exports.compare = {
-            'one array':  function() { x = [1, 2, 3]; },
-            'two arrays': function() { x = [1, 2, 3]; y = [4, 5, 6]; },
-        };
-        bench.runMain();
-        // one array
-        // Average (mean) 53302.44755244756
-        // two arrays
-        // Average (mean) 33285.46453546454
+    var x, y, bench = require('bench');
+    module.exports.compare = {
+        'one array':  function() { x = [1, 2, 3]; },
+        'two arrays': function() { x = [1, 2, 3]; y = [4, 5, 6]; },
+    };
+    bench.runMain();
+    // one array
+    // Average (mean) 53302.44755244756
+    // two arrays
+    // Average (mean) 33285.46453546454
 
 Both sets of these reported rates seem wrong:  allocating two arrays is twice as
 much work thus should run at half the speed (take twice as long) as allocating just
@@ -142,23 +142,23 @@ Sometimes it's possible to double-check the accuracy of the reported speeds from
 short scripts or even from the command line.  So let's re-measure the rates with a
 barebones timed loop:
 
-        # node startup and loop overhead
-        % time node -p 'var x; for (var i=0; i<100000000; i++) ;'
-        0.208u 0.000s 0:00.21 95.2%     0+0k 0+0io 0pf+0w
+    # node startup and loop overhead
+    % time node -p 'var x; for (var i=0; i<100000000; i++) ;'
+    0.208u 0.000s 0:00.21 95.2%     0+0k 0+0io 0pf+0w
 
-        # total time for [1,2,3]
-        % time node -p 'var x; for (var i=0; i<100000000; i++) x = [1,2,3];'
-        1.292u 0.000s 0:01.29 100.0%    0+0k 0+0io 0pf+0w
+    # total time for [1,2,3]
+    % time node -p 'var x; for (var i=0; i<100000000; i++) x = [1,2,3];'
+    1.292u 0.000s 0:01.29 100.0%    0+0k 0+0io 0pf+0w
 
-        # total time for both [1,2,3] and [4,5,6]
-        % time node -p 'var x, y; for (var i=0; i<100000000; i++) { x = [1,2,3]; y = [4,5,6]; }'
-        2.348u 0.004s 0:02.35 99.5%     0+0k 0+0io 0pf+0w
+    # total time for both [1,2,3] and [4,5,6]
+    % time node -p 'var x, y; for (var i=0; i<100000000; i++) { x = [1,2,3]; y = [4,5,6]; }'
+    2.348u 0.004s 0:02.35 99.5%     0+0k 0+0io 0pf+0w
 
-        # operations per second for the one array and two arrays
-        % echo '100000000 / (1.29 - .21)' | bc
-        92592592
-        % echo '100000000 / (2.35 - .21)' | bc
-        46728971
+    # operations per second for the one array and two arrays
+    % echo '100000000 / (1.29 - .21)' | bc
+    92592592
+    % echo '100000000 / (2.35 - .21)' | bc
+    46728971
 
 Raw: 92.59m/s.  Benchmark: 38.28m/s, 142% off.  Bench: 53.30m/s, 74% off.
 Qtimeit: 93.47m/s, 1% off.
@@ -197,8 +197,8 @@ On Linux, these can be controlled somewhat by setting the scaling_governor to
 `performance` (always fast) one one of the cores, then running the test on that
 core.  Eg, for core 3:
 
-        $ echo -n performance > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
-        $ taskset 4 node test.js
+    $ echo -n performance > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
+    $ taskset 4 node test.js
 
 (/sys/devices/system/cpu numbers cpus starting at 0.  The `taskset` core number is
 a bitmask starting at 1, so core1 = 1, core2 = 2, core3 = 4, core4 = 8, etc.  The
