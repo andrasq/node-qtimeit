@@ -465,8 +465,8 @@ function bench( /* options?, */ functions, callback ) {
     var tests = {};
     if (Array.isArray(functions)) for (var i=0; i<functions.length; i++) tests['#'+(i+1)] = functions[i];
     else tests = functions;
-    console.log('node=%s arch=%s mhz=%d cpu="%s" up_threshold=%d',
-        sys.nodeVersion, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
+    console.log('node=%s v8=%s arch=%s mhz=%d cpu="%s" up_threshold=%d',
+        sys.nodeVersion, sys.v8Version, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
     console.log('name  speed  (stats)  rate');
 
     var testNames = Object.keys(tests);
