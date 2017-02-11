@@ -337,6 +337,11 @@ function sysinfo( ) {
         cpuCount: os.cpus().length,             // `grep -c '^model name' /proc/cpuinfo`
         cpuUpThreshold: fs.existsSync(up_threshold) && fs.readFileSync(up_threshold).toString().trim(),
     };
+
+    // some Intel model names embed a misleading (incorrect) GHz, hide it
+    sysinfo.cpuMhz = sysinfo.cpuMhz + "[*os]";
+    sysinfo.cpu = sysinfo.cpu.replace(/ @ [0-9.]*/, " @ *.**");
+
     return sysinfo;
 }
 
@@ -465,7 +470,7 @@ function bench( /* options?, */ functions, callback ) {
     var tests = {};
     if (Array.isArray(functions)) for (var i=0; i<functions.length; i++) tests['#'+(i+1)] = functions[i];
     else tests = functions;
-    console.log('node=%s v8=%s arch=%s mhz=%d cpu="%s" up_threshold=%d',
+    console.log('node=%s v8=%s arch=%s mhz=%s cpu="%s" up_threshold=%s',
         sys.nodeVersion, sys.v8Version, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
     console.log('name  speed  (stats)  rate');
 
