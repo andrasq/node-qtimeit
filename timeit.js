@@ -317,12 +317,33 @@ function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
 
 var fs = require('fs');
 var os = require('os');
+var child_process = require('child_process');
 
 function sysinfo( ) {
     var mhz = 0;
     function maxSpeed(cpus) {
         for (var i=0; i<cpus.length; i++) if (cpus[i].speed > mhz) mhz = cpus[i].speed;
         return mhz;
+    }
+    function actualSpeed() {
+        var node = process.argv[0];
+        var argv = [
+            "stat", "-e", "cycles,task-clock",
+            node, "-p", 'tm = Date.now() + 100; do { for (i=0; i<1000000; i++) ; } while (Date.now() < tm);',
+        ];
+        try {
+            var results = child_process.spawnSync("/usr/bin/perf", argv);
+            var lines = results.stderr.toString().replace(',', '').split('\n');
+            var cycles, ms;
+            for (var i=0; i<lines.length; i++) {
+                if (lines[i].indexOf(' cycles ') > 0) cycles = parseFloat(lines[i].replace(/,/g, ''));
+                if (lines[i].indexOf(' task-clock ') > 0) ms = parseFloat(lines[i]);
+            }
+            return Math.floor(cycles / ms / 1000 / 10 + .5) * 10;
+        }
+        catch (err) {
+            return false;
+        }
     }
     var up_threshold = "/sys/devices/system/cpu/cpufreq/ondemand/up_threshold";
     var sysinfo = {
@@ -333,14 +354,12 @@ function sysinfo( ) {
         arch: process.arch,                     // 'ia32'
         kernel: os.release(),                   // `uname -r`
         cpu: os.cpus()[0].model,                // `grep '^model name' /proc/cpuinfo`
-        cpuMhz: maxSpeed(os.cpus()),            // `grep 'MHz' /proc/cpuinfo`
+        cpuMhz: actualSpeed() || maxSpeed(os.cpus())+"[*os]",   // `grep 'MHz' /proc/cpuinfo` or use `perf` to compute
         cpuCount: os.cpus().length,             // `grep -c '^model name' /proc/cpuinfo`
         cpuUpThreshold: fs.existsSync(up_threshold) && fs.readFileSync(up_threshold).toString().trim(),
     };
 
-    // some Intel model names embed a misleading (incorrect) GHz, hide it
-    sysinfo.cpuMhz = sysinfo.cpuMhz + "[*os]";
-    sysinfo.cpu = sysinfo.cpu.replace(/ @ [0-9.]*/, " @ *.**");
+    // TODO: accept bench.cpuMhz = 4620 option to skip the calibration step?
 
     return sysinfo;
 }
@@ -468,8 +487,12 @@ function bench( /* options?, */ functions, callback ) {
     var sys = sysinfo();
     var results = [];
     var tests = {};
+
     if (Array.isArray(functions)) for (var i=0; i<functions.length; i++) tests['#'+(i+1)] = functions[i];
     else tests = functions;
+
+    if (bench.cpuMhz > 0) sys.cpuMhz = bench.cpuMhz + "[u]";
+
     console.log('node=%s v8=%s arch=%s mhz=%s cpu="%s" up_threshold=%s',
         sys.nodeVersion, sys.v8Version, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
     console.log('name  speed  (stats)  rate');

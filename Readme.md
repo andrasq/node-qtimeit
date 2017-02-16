@@ -101,11 +101,27 @@ How many operations are performed in each test function, for when the tests
 themselves loop.  The number of ops/sec reported in the summary will be scaled up
 by this value.  Default 1.
 
+### timeit.bench.cpuMhz
+
+The processor speed to report in the platform summary line, in MHz.  Qtimeit tries
+to self-calibrate using /usr/bin/perf on linux systems, but calibration is not
+perfect, and can under-report the speed.  If calibration fails `qtimeit` normally
+reports the unreliable figure included in `os.cpus()`.
 
 Comparisons
 -----------
 
 Testing with node-v5.10.1 (which on this test is 25% faster than node-v6.2.2):
+
+Benchmarking with `qtimeit` (from above)
+
+    var x, timeit = require('qtimeit');
+    timeit.bench([
+        function() { x = [1, 2, 3]; },
+        function() { x = [1, 2, 3]; y = [4, 5, 6]; }
+    ]);
+    // #1  93,468,158 / sec (31 runs of 5m in 1.658 over 4.373s, +/- 2.16%) 1000
+    // #2  47,414,812 / sec (22 runs of 5m in 2.320 over 4.059s, +/- 1.94%) 507
 
 Benchmarking with `benchmark`
 
@@ -133,9 +149,9 @@ Benchmarking with `bench`
     // two arrays
     // Average (mean) 33285.46453546454
 
-Both sets of these reported rates seem wrong:  allocating two arrays is twice as
+The two last sets of reported rates seem wrong:  allocating two arrays is twice as
 much work thus should run at half the speed (take twice as long) as allocating just
-one.  The rates are also much lower than the qtimeit.bench-reported 93m and 47m
+one.  The rates are also much lower than the `qtimeit.bench`-reported 93m and 47m
 operations per second.
 
 Sometimes it's possible to double-check the accuracy of the reported speeds from
@@ -189,6 +205,7 @@ the actual cpu speed can vary and may not be known.
 - it takes some amount computation to bring the cpu out of slow mode
 - with just one core active, the cpu will run in turbo (extra-fast) mode
 - with multiple cores active, the cpu can switch to a slower turbo mode
+- some cpus can use super-turbo speeds faster than the preset turbo
 - if the core temperature reaches an internal threshold, turbo mode might end
 - very short one-liners that fit into the cpu cache can benchmark as much faster
   than when run in more realistic settings alongside other code
