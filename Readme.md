@@ -91,17 +91,17 @@ are proportionately higher if they ran more calls, or lower if they ran fewer ca
 per second than the first test.  (E.g. above: 47,415k / 93,468k = 0.5072, ie "507"
 compared to the first test's "1000".)
 
-### timeit.bench.timeGoal
+#### timeit.bench.timeGoal
 
 How long to loop the each test before computing the average.  Default 4.00 seconds.
 
-### timeit.bench.opsPerTest
+#### timeit.bench.opsPerTest
 
 How many operations are performed in each test function, for when the tests
 themselves loop.  The number of ops/sec reported in the summary will be scaled up
 by this value.  Default 1.
 
-### timeit.bench.cpuMhz
+#### timeit.bench.cpuMhz
 
 The processor speed to report in the platform summary line, in MHz.  Qtimeit tries
 to self-calibrate using /usr/bin/perf on linux systems, but calibration is not

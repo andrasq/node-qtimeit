@@ -21,6 +21,7 @@ module.exports.reportit = reportit;
 module.exports.fptime = fptime;
 module.exports.runit = runit;
 module.exports.bench = bench;
+module.exports.sysinfo = sysinfo;
 
 
 if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
@@ -345,6 +346,7 @@ function sysinfo( ) {
             return false;
         }
     }
+    var cpuMhz = actualSpeed() || maxSpeed(os.cpus())+"[*os]";
     var up_threshold = "/sys/devices/system/cpu/cpufreq/ondemand/up_threshold";
     var sysinfo = {
         nodeTitle: process.title,               // 'node'
@@ -354,7 +356,7 @@ function sysinfo( ) {
         arch: process.arch,                     // 'ia32'
         kernel: os.release(),                   // `uname -r`
         cpu: os.cpus()[0].model,                // `grep '^model name' /proc/cpuinfo`
-        cpuMhz: actualSpeed() || maxSpeed(os.cpus())+"[*os]",   // `grep 'MHz' /proc/cpuinfo` or use `perf` to compute
+        cpuMhz: cpuMhz,                         // `grep 'MHz' /proc/cpuinfo` or use `perf` to compute
         cpuCount: os.cpus().length,             // `grep -c '^model name' /proc/cpuinfo`
         cpuUpThreshold: fs.existsSync(up_threshold) && fs.readFileSync(up_threshold).toString().trim(),
     };
