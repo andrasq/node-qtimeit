@@ -108,6 +108,16 @@ to self-calibrate using /usr/bin/perf on linux systems, but calibration is not
 perfect, and can under-report the speed.  If calibration fails `qtimeit` normally
 reports the unreliable figure included in `os.cpus()`.
 
+### timeit.cpuMhz( )
+
+Measure the speed of the processor using `perf stat ...`.  Works on Linux, not sure
+about other platforms.  Returns a float eg `4522.5421`, else `false` if unable to
+measure.
+
+### timeit.sysinfo( )
+
+Return the information block that is also prepended to `qtimeit.bench` test runs.
+
 Comparisons
 -----------
 

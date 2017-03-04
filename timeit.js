@@ -22,7 +22,9 @@ module.exports.fptime = fptime;
 module.exports.runit = runit;
 module.exports.bench = bench;
 module.exports.sysinfo = sysinfo;
+module.exports.cpuMhz = measureCpuMhz;
 
+var version = require('./package.json').version;
 
 if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
 
@@ -320,35 +322,38 @@ var fs = require('fs');
 var os = require('os');
 var child_process = require('child_process');
 
+function measureCpuMhz( ) {
+    var node = process.argv[0];
+    var argv = [
+        "stat", "-e", "cycles,task-clock",
+        node, "-p", 'tm = Date.now() + 100; do { for (i=0; i<1000000; i++) ; } while (Date.now() < tm);',
+    ];
+    try {
+        var results = child_process.spawnSync("/usr/bin/perf", argv);
+        var lines = results.stderr.toString().replace(',', '').split('\n');
+        var cycles, ms;
+        for (var i=0; i<lines.length; i++) {
+            if (lines[i].indexOf(' cycles ') > 0) cycles = parseFloat(lines[i].replace(/,/g, ''));
+            if (lines[i].indexOf(' task-clock ') > 0) ms = parseFloat(lines[i]);
+        }
+        return cycles / ms / 1000;
+    }
+    catch (err) {
+        return false;
+    }
+}
+
 function sysinfo( ) {
-    var mhz = 0;
     function maxSpeed(cpus) {
+        var mhz = 0;
         for (var i=0; i<cpus.length; i++) if (cpus[i].speed > mhz) mhz = cpus[i].speed;
         return mhz;
     }
-    function actualSpeed() {
-        var node = process.argv[0];
-        var argv = [
-            "stat", "-e", "cycles,task-clock",
-            node, "-p", 'tm = Date.now() + 100; do { for (i=0; i<1000000; i++) ; } while (Date.now() < tm);',
-        ];
-        try {
-            var results = child_process.spawnSync("/usr/bin/perf", argv);
-            var lines = results.stderr.toString().replace(',', '').split('\n');
-            var cycles, ms;
-            for (var i=0; i<lines.length; i++) {
-                if (lines[i].indexOf(' cycles ') > 0) cycles = parseFloat(lines[i].replace(/,/g, ''));
-                if (lines[i].indexOf(' task-clock ') > 0) ms = parseFloat(lines[i]);
-            }
-            return Math.floor(cycles / ms / 1000 / 10 + .5) * 10;
-        }
-        catch (err) {
-            return false;
-        }
-    }
-    var cpuMhz = actualSpeed() || maxSpeed(os.cpus())+"[*os]";
-    var up_threshold = "/sys/devices/system/cpu/cpufreq/ondemand/up_threshold";
+    var cpuMhz = Math.floor(measureCpuMhz() + .5) || maxSpeed(os.cpus())+"[*os]";
+    var up_threshold_file = "/sys/devices/system/cpu/cpufreq/ondemand/up_threshold";
+    var up_threshold = fs.existsSync(up_threshold_file) && fs.readFileSync(up_threshold_file).toString().trim();
     var sysinfo = {
+        qtimeitVersion: version,                // 0.15.0
         nodeTitle: process.title,               // 'node'
         nodeVersion: process.versions.node,     // '5.10.1'
         v8Version: process.versions.v8,         // '4.6.85.31'
@@ -358,10 +363,8 @@ function sysinfo( ) {
         cpu: os.cpus()[0].model,                // `grep '^model name' /proc/cpuinfo`
         cpuMhz: cpuMhz,                         // `grep 'MHz' /proc/cpuinfo` or use `perf` to compute
         cpuCount: os.cpus().length,             // `grep -c '^model name' /proc/cpuinfo`
-        cpuUpThreshold: fs.existsSync(up_threshold) && fs.readFileSync(up_threshold).toString().trim(),
+        cpuUpThreshold: up_threshold,           // `cat $up_threshold_file`
     };
-
-    // TODO: accept bench.cpuMhz = 4620 option to skip the calibration step?
 
     return sysinfo;
 }
@@ -495,6 +498,8 @@ function bench( /* options?, */ functions, callback ) {
 
     if (bench.cpuMhz > 0) sys.cpuMhz = bench.cpuMhz + "[u]";
 
+    console.log("qtimeit=%s platform=%s kernel=%s cpuCount=%s",
+        sys.qtimeitVersion, sys.platform, sys.kernel, sys.cpuCount);
     console.log('node=%s v8=%s arch=%s mhz=%s cpu="%s" up_threshold=%s',
         sys.nodeVersion, sys.v8Version, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
     console.log('name  speed  (stats)  rate');
