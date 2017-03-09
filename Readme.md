@@ -117,6 +117,8 @@ measure.
 ### timeit.sysinfo( )
 
 Return the information block that is also prepended to `qtimeit.bench` test runs.
+This includes the node and v8 versions, the system architecture, and the cpu make,
+model and speed in MHz.
 
 Comparisons
 -----------

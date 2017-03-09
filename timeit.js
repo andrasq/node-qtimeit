@@ -351,7 +351,10 @@ function sysinfo( ) {
     }
     var cpuMhz = Math.floor(measureCpuMhz() + .5) || maxSpeed(os.cpus())+"[*os]";
     var up_threshold_file = "/sys/devices/system/cpu/cpufreq/ondemand/up_threshold";
+    var scaling_governor_file = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor";
+    // up_threshold does not exists if ~/cpu/cpu*/cpufreq/scaling_governor is all "performance"
     var up_threshold = fs.existsSync(up_threshold_file) && fs.readFileSync(up_threshold_file).toString().trim();
+    var scaling_governor = fs.existsSync(scaling_governor_file.replace('*', '0')) && child_process.execSync("cat " + scaling_governor_file).toString().replace(/\n/g, ' ').trim();
     var sysinfo = {
         qtimeitVersion: version,                // 0.15.0
         nodeTitle: process.title,               // 'node'
@@ -364,6 +367,7 @@ function sysinfo( ) {
         cpuMhz: cpuMhz,                         // `grep 'MHz' /proc/cpuinfo` or use `perf` to compute
         cpuCount: os.cpus().length,             // `grep -c '^model name' /proc/cpuinfo`
         cpuUpThreshold: up_threshold,           // `cat $up_threshold_file`
+        cpuScalingGovernor: scaling_governor,   // `cat $scaling_governor_files`
     };
 
     return sysinfo;
