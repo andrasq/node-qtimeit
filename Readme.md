@@ -60,7 +60,6 @@ callback that the test must call for timeit to finish.
     timeit(10000000, function(cb) { x = [1, 2, 3]; cb() }, function(){});
     // => 10000000 loops in 0.1107 of 0.52 sec: 90337752.78 / sec, 0.000011 ms each
 
-
 ### timeit.bench( suite [,callback] )
 
 Run each of the functions in the suite and report timings and relative throughput.
@@ -107,6 +106,21 @@ The processor speed to report in the platform summary line, in MHz.  Qtimeit tri
 to self-calibrate using /usr/bin/perf on linux systems, but calibration is not
 perfect, and can under-report the speed.  If calibration fails `qtimeit` normally
 reports the unreliable figure included in `os.cpus()`.
+
+### timeit.fptime( )
+
+Nanosecond-resolution floating-point timestamp from process.hrtime().  The
+timestamp returned does not have an absolute meaning (on Linux, it's `uptime(1)`,
+the number of seconds since the last boot), but differeces between timestamps
+are accurate -- a difference of 1.00 is 1 elapsed second.  The overhead is as
+low as .6 microseconds per call, about 3x slower than Date.now().
+
+        var fptime = require('arlib/timeit').fptime
+        var t1 = fptime();      // 1809688.215437152
+        var t2 = fptime();      // 1809688.215462518
+        var t3 = fptime();      // 1809688.215466353
+        // 25.4 usec for the first call, 3.84 for the second
+        // uptime of 20 days, 22:40 hours
 
 ### timeit.cpuMhz( )
 
