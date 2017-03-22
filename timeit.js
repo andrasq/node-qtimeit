@@ -46,6 +46,31 @@ function repeatWhile( test, visitor, callback ) {
     else return callback();
 }
 
+var _pads = ['', ' ', '  ', '   ', '    ', '     ', '      ', '       ', '        '];
+function str_repeat( str, count ) {
+    count = Math.floor(count);
+    if (str === ' ' && count <= 8) return _pads[count];
+    var half = Math.floor(count / 2);
+
+    switch (count) {
+    case 3: return str + str + str; break;
+    case 2: return str + str; break;
+    case 1: return str; break;
+    case 0: return ''; break;
+    default: return str_repeat(str, half) + str_repeat(str, count - half); break;
+    }
+}
+
+function padRight( str, ch, width ) {
+    var n = width - str.length;
+    return (n >= 0) ? str + str_repeat(ch, n) : str;
+}
+
+function padLeft( str, ch, width ) {
+    var n = width - str.length;
+    return (n >= 0) ? str_repeat(ch, n) + str : str;
+}
+
 // 0.01357 => 0.014
 function formatFloat( value, decimals ) {
     var power = 1, sign = '';
@@ -321,6 +346,14 @@ function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
 var fs = require('fs');
 var os = require('os');
 var child_process = require('child_process');
+var util = require('util');
+
+// extract command-line options meant for qtimeit and not the benchmark itself
+var visualize = false;
+for (var i=2; i<process.argv.length; i++) switch (process.argv[i]) {
+case '-qV': case '--qversion': console.log(version); process.exit();  break;
+case '-qv': visualize = true; process.argv.splice(i, 1); break;
+}
 
 function measureCpuMhz( ) {
     var node = process.argv[0];
@@ -509,6 +542,20 @@ function bench( /* options?, */ functions, callback ) {
     console.log('name  speed  (stats)  rate');
 
     var testNames = Object.keys(tests);
+    var maxWidth = 0;
+    for (var i=0; i<testNames.length; i++) if (testNames[i].length > maxWidth) maxWidth = testNames[i].length;
+    var nameColumnWidth = maxWidth;
+    var opsColumnWidth = 13;
+    var metaColumnWidth = 60;
+    var rankColumnWidth = 5;
+    var bargraphStr = '>';
+    var spacer = '';
+    if (!visualize) {
+        nameColumnWidth = opsColumnWidth = metaColumnWidth = rankColumnWidth = 1;
+        bargraphStr = '';
+        spacer = ' ';
+    }
+
     repeatWhile(
         function() {
             return testNames.length > 0;
@@ -531,9 +578,16 @@ function bench( /* options?, */ functions, callback ) {
     );
 
     function reportResult( name, test, res, res0 ) {
-        console.log("%s  %s ops/sec (%d runs of %s calls in %s out of %s sec, +/- %d%%) %d",
-            name, number_format(res.avg >>> 0),
-            res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3), formatFloat((res.max - res.min)/2/res.avg * 100, 2),
-            ((1000 * res.avg / res0.avg + 0.5) >>> 0));
+        var rank = Math.round(1000 * res.avg / res0.avg);
+        var meta = util.format("(%d runs of %s calls in %s out of %s sec, +/- %d%%)",
+            res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3),
+            formatFloat((res.max - res.min)/2/res.avg * 100, 2)
+        );
+        console.log("%s%s %s ops/sec %s%s%s %s",
+            padRight(name, ' ', nameColumnWidth), spacer, padLeft(number_format(res.avg >>> 0), ' ', opsColumnWidth),
+            padRight(meta, ' ', metaColumnWidth),
+            spacer,
+            padLeft('' + rank, ' ', rankColumnWidth),
+            str_repeat(bargraphStr, Math.round(5 * rank / 1000)));
     }
 }
