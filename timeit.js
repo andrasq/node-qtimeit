@@ -348,13 +348,6 @@ var os = require('os');
 var child_process = require('child_process');
 var util = require('util');
 
-// extract command-line options meant for qtimeit and not the benchmark itself
-var visualize = false;
-for (var i=2; i<process.argv.length; i++) switch (process.argv[i]) {
-case '-qV': case '--qversion': console.log(version); process.exit();  break;
-case '-qv': visualize = true; process.argv.splice(i, 1); break;
-}
-
 function measureCpuMhz( ) {
     var node = process.argv[0];
     var argv = [
@@ -526,6 +519,7 @@ function bench( /* options?, */ functions, callback ) {
 
     var timeGoal = bench.timeGoal || 4.00;
     var opsPerTest = bench.opsPerTest || 1;
+    var visualize = bench.visualize || false;
     var sys = sysinfo();
     var results = [];
     var tests = {};
