@@ -26,6 +26,9 @@ module.exports.cpuMhz = measureCpuMhz;
 
 var version = require('./package.json').version;
 
+var scaling_governor="";
+child_process
+
 if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
 
 function fptime() {
@@ -348,6 +351,16 @@ var os = require('os');
 var child_process = require('child_process');
 var util = require('util');
 
+var scaling_governor = "";
+var scaling_governor_file = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor";
+child_process.exec("cat " + scaling_governor_file, function(err, stdout, stderr) {
+    // race condition: node-v0.10.42 does not have execSync,
+    // so cat the scaling_governor files now, and hope they arrive in time
+    if (!err) {
+        scaling_governor = stdout.toString().replace(/\n/g, ' ').trim();
+    }
+})
+
 function measureCpuMhz( ) {
     var node = process.argv[0];
     var argv = [
@@ -380,7 +393,9 @@ function sysinfo( ) {
     var scaling_governor_file = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor";
     // up_threshold does not exists if ~/cpu/cpu*/cpufreq/scaling_governor is all "performance"
     var up_threshold = fs.existsSync(up_threshold_file) && fs.readFileSync(up_threshold_file).toString().trim();
-    var scaling_governor = fs.existsSync(scaling_governor_file.replace('*', '0')) && child_process.execSync("cat " + scaling_governor_file).toString().replace(/\n/g, ' ').trim();
+    if (process.version >= 'v4.') {
+        scaling_governor = fs.existsSync(scaling_governor_file.replace('*', '0')) && child_process.execSync("cat " + scaling_governor_file).toString().replace(/\n/g, ' ').trim();
+    }
     var sysinfo = {
         qtimeitVersion: version,                // 0.15.0
         nodeTitle: process.title,               // 'node'
