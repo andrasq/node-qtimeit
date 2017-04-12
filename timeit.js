@@ -27,9 +27,13 @@ module.exports.cpuMhz = measureCpuMhz;
 var version = require('./package.json').version;
 
 var scaling_governor="";
-child_process
 
 if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
+
+var noopSideEffect = 0;
+function noop(x) {
+    noopSideEffect = x;
+}
 
 function fptime() {
     // note: how trustworthy is hrtime?
@@ -163,6 +167,7 @@ function calibrate( ) {
 
     // disable optimization of this function
     try { } catch (e) { }
+    noop(arguments);
 
 /*  // disable inlining of this function
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -195,6 +200,7 @@ function calibrateCb( nloops, cb ) {
 
     // disable optimization of this function
     try { } catch (e) { }
+    noop(arguments);
 
 /*  // disable inlining of this function
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -305,7 +311,7 @@ function timeit( nloops, f, msg, callback ) {
                         }
                     }
                     function __onTestDone() {
-                        if (__depth > 500) { __depth = 0; setImmediate(__launchNext); }
+                        if (__depth > 100) { __depth = 0; setImmediate(__launchNext); }
                         else __launchNext();
                     }
                 });
