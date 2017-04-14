@@ -539,6 +539,7 @@ function bench( /* options?, */ functions, callback ) {
     }
 
     var timeGoal = bench.timeGoal || 4.00;
+    var baselineAvg = bench.baselineAvg || undefined;
     var opsPerTest = bench.opsPerTest || 1;
     var visualize = bench.visualize || false;
     var sys = sysinfo();
@@ -583,7 +584,8 @@ function bench( /* options?, */ functions, callback ) {
             function afterTest(err, res) {
                 if (opsPerTest != 1) res.avg = res.count * opsPerTest / res.elapsed;
                 results.push({ name: testName, results: res });
-                reportResult(testName, test, res, results[0].results);
+                var baseline = { avg: baselineAvg ? baselineAvg : results[0].results.avg };
+                reportResult(testName, test, res, baseline);
                 next();
             }
         },
@@ -594,7 +596,7 @@ function bench( /* options?, */ functions, callback ) {
 
     function reportResult( name, test, res, res0 ) {
         var rank = Math.round(1000 * res.avg / res0.avg);
-        var meta = util.format("(%d runs of %s calls in %s out of %s sec, +/- %d%%)",
+        var meta = util.format("(%d runs of %s calls in %s out of %s sec, +/- %s%%)",
             res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3),
             formatFloat((res.max - res.min)/2/res.avg * 100, 2)
         );
