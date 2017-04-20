@@ -113,8 +113,8 @@ If set, align the columns and append performance bars relative to the first resu
 
 ### timeit.bench.baselineAvg
 
-If set, the baseline runtime to which to normalize the relative rankings.  The
-default is to normalize to the first benchmark's results.
+If set, the baseline ops / sec rate to which to normalize the relative rankings.
+The default is to normalize to the first benchmark's results.
 
 ### timeit.fptime( )
 
