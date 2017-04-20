@@ -107,11 +107,11 @@ to self-calibrate using /usr/bin/perf on linux systems, but calibration is not
 perfect, and can under-report the speed.  If calibration fails `qtimeit` normally
 reports the unreliable figure included in `os.cpus()`.
 
-### timeit.bench.visualize
+#### timeit.bench.visualize
 
 If set, align the columns and append performance bars relative to the first result.
 
-### timeit.bench.baselineAvg
+#### timeit.bench.baselineAvg
 
 If set, the baseline ops / sec rate used to normalize the relative rankings.  The
 default is to normalize to the first test's speed, and define that rate as the
