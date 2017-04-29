@@ -290,3 +290,4 @@ Todo
 
 - tiny command line one-liners can run out of cache and give inflated results
 - need a way to force deoptimization so can time deoptimized version too
+- add the option to fork tests, ie run each test in a clean heap

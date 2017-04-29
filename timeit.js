@@ -563,7 +563,7 @@ function bench( /* options?, */ functions, callback ) {
     var nameColumnWidth = maxWidth;
     var opsColumnWidth = 13;
     var metaColumnWidth = 60;
-    var rankColumnWidth = 5;
+    var rankColumnWidth = 6;
     var bargraphStr = '>';
     var spacer = '';
     if (!visualize) {
