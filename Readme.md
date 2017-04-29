@@ -117,6 +117,20 @@ If set, the baseline ops / sec rate used to normalize the relative rankings.  Th
 default is to normalize to the first test's speed, and define that rate as the
 nominal 1000.
 
+#### timeit.bench.forkTests
+
+If set, each test in the suite will be run in a separate process created with
+`child_process.fork`, with the results tabulated as usual.
+
+Since fork re-runs the top level test script, any test preamble that should
+only be output once can be placed into the `timeit.bench.preRunMessage` field,
+which will be written to the console before the tests are run.
+
+#### timeit.bench.preRunMessage
+
+The contents of this property are written to stdout before the tests are run.
+See `forkTests` for details.
+
 ### timeit.fptime( )
 
 Nanosecond-resolution floating-point timestamp from process.hrtime().  The
@@ -285,9 +299,22 @@ Related Work
 - [qbson](http://github.com/andrasq/node-qbson) - BSON encode/decode functions whose timings prompted `timeit.bench()`
 
 
+ChangeLog
+---------
+
+- 0.18.0 - `bench.forkTests`, `bench.preRunMessage` settings, back-filled this changelog
+- 0.17.0 - `bench.baselineAvg` setting
+- 0.16.0 - `bench.visualize` setting
+- 0.15.0 - `timeit.sysinfo()` and `timeit.cpuMhz()`
+- 0.14.0 - time and report actual cpu mhz
+- 0.13.0 - `bench.opsPerTest` setting
+- 0.12.1 - `bench.timeGoal` setting
+- 0.11.5 - `qtimeit.bench` benchmark runner for sync and async tests
+
+
 Todo
 ----
 
 - tiny command line one-liners can run out of cache and give inflated results
 - need a way to force deoptimization so can time deoptimized version too
-- add the option to fork tests, ie run each test in a clean heap
+- measure and report on mem usage (might be enough to check on each return?)

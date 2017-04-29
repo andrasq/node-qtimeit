@@ -42,6 +42,16 @@ function fptime() {
     return t[0] + t[1] * 0.000000001;
 }
 
+function cputime() {
+    var os = global.os || require('os');
+    var cpus = os.cpus();
+    var millis = 0;
+    for (var i=0; i<cpus.length; i++) {
+        millis += (cpus[i].times.user + cpus[i].times.sys) * 0.01;
+    }
+    return millis;
+}
+
 function repeatWhile( test, visitor, callback ) {
     if (test()) {
         visitor(function(err){
@@ -394,7 +404,7 @@ function sysinfo( ) {
         for (var i=0; i<cpus.length; i++) if (cpus[i].speed > mhz) mhz = cpus[i].speed;
         return mhz;
     }
-    var cpuMhz = Math.floor(measureCpuMhz() + .5) || maxSpeed(os.cpus())+"[*os]";
+    var cpuMhz = Math.round(measureCpuMhz() + .5) || maxSpeed(os.cpus())+"[os]";
     var up_threshold_file = "/sys/devices/system/cpu/cpufreq/ondemand/up_threshold";
     var scaling_governor_file = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor";
     // up_threshold does not exists if ~/cpu/cpu*/cpufreq/scaling_governor is all "performance"
@@ -542,6 +552,8 @@ function bench( /* options?, */ functions, callback ) {
     var baselineAvg = bench.baselineAvg || undefined;
     var opsPerTest = bench.opsPerTest || 1;
     var visualize = bench.visualize || false;
+    var forkTests = bench.forkTests || false;
+    var isForked = Boolean(process.env._QTIMEIT_TEST);
     var sys = sysinfo();
     var results = [];
     var tests = {};
@@ -551,11 +563,17 @@ function bench( /* options?, */ functions, callback ) {
 
     if (bench.cpuMhz > 0) sys.cpuMhz = bench.cpuMhz + "[u]";
 
-    console.log("qtimeit=%s platform=%s kernel=%s cpuCount=%s",
-        sys.qtimeitVersion, sys.platform, sys.kernel, sys.cpuCount);
-    console.log('node=%s v8=%s arch=%s mhz=%s cpu="%s" up_threshold=%s',
-        sys.nodeVersion, sys.v8Version, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
-    console.log('name  speed  (stats)  rate');
+    // prepend a canned message to the tests, to allow forked tests to output
+    if (bench.preRunMessage && !isForked) console.log(bench.preRunMessage);
+
+    // if invoked recursively to run a single test, omit the header
+    if (!isForked) {
+        console.log("qtimeit=%s platform=%s kernel=%s cpuCount=%s",
+            sys.qtimeitVersion, sys.platform, sys.kernel, sys.cpuCount);
+        console.log('node=%s v8=%s arch=%s mhz=%s cpu="%s" up_threshold=%s',
+            sys.nodeVersion, sys.v8Version, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
+        console.log('name  speed  (stats)  rate');
+    }
 
     var testNames = Object.keys(tests);
     var maxWidth = 0;
@@ -572,6 +590,13 @@ function bench( /* options?, */ functions, callback ) {
         spacer = ' ';
     }
 
+    // if invoked recursively to run a single test, use the precomputed format settings
+    if (isForked) {
+        var testSettings = JSON.parse(process.env._QTIMEIT_TEST);
+        if (testSettings.testNames) testNames = testSettings.testNames;
+        if (testSettings.nameColumnWidth) nameColumnWidth = testSettings.nameColumnWidth;
+    }
+
     repeatWhile(
         function() {
             return testNames.length > 0;
@@ -580,12 +605,34 @@ function bench( /* options?, */ functions, callback ) {
             var testName = testNames.shift();
             var test = tests[testName];
             //process.stdout.write(testName + " ");
-            callback ? runTest(timeGoal, test, afterTest) : afterTest(null, runTest(timeGoal, test));
+
+            // if forking each test, invoke self recursively instead of running now
+            if (forkTests && !isForked) {
+                process.env._QTIMEIT_TEST = JSON.stringify({ testNames: [testName] });
+                var child = child_process.fork(process.argv[1]);
+
+                var err, res;
+                child.on('message', function(msg) {
+                    err = msg.err;
+                    res = msg.res;
+                })
+                child.on('exit', function(code, signal) {
+                    if (!err && !res) err = new Error(testName + ": no response from forked test, code " + (signal || code));
+                    else afterTest(err, res, testName);
+                })
+            }
+
+            // run test when standalone or is forked child test runner
+            if (!forkTests || isForked) {
+                callback ? runTest(timeGoal, test, afterTest) : afterTest(null, runTest(timeGoal, test));
+            }
+
             function afterTest(err, res) {
                 if (opsPerTest != 1) res.avg = res.count * opsPerTest / res.elapsed;
                 results.push({ name: testName, results: res });
                 var baseline = { avg: baselineAvg ? baselineAvg : results[0].results.avg };
-                reportResult(testName, test, res, baseline);
+                if (isForked) process.send({ err: err, res: res });
+                else reportResult(testName, test, res, baseline);
                 next();
             }
         },
