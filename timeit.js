@@ -568,10 +568,10 @@ function bench( /* options?, */ functions, callback ) {
 
     // if invoked recursively to run a single test, omit the header
     if (!isForked) {
-        console.log("qtimeit=%s platform=%s kernel=%s cpuCount=%s",
-            sys.qtimeitVersion, sys.platform, sys.kernel, sys.cpuCount);
-        console.log('node=%s v8=%s arch=%s mhz=%s cpu="%s" up_threshold=%s',
-            sys.nodeVersion, sys.v8Version, sys.arch, sys.cpuMhz, sys.cpu, sys.cpuUpThreshold);
+        console.log("qtimeit=%s node=%s v8=%s platform=%s kernel=%s up_threshold=%s",
+            sys.qtimeitVersion, sys.nodeVersion, sys.v8Version, sys.platform, sys.kernel, sys.cpuUpThreshold);
+        console.log('arch=%s mhz=%s cpuCount=%s cpu="%s"',
+            sys.arch, sys.cpuMhz, sys.cpuCount, sys.cpu);
         console.log('name  speed  (stats)  rate');
     }
 
