@@ -576,9 +576,9 @@ function bench( /* options?, */ functions, callback ) {
     }
 
     var testNames = Object.keys(tests);
-    var maxWidth = 0;
-    for (var i=0; i<testNames.length; i++) if (testNames[i].length > maxWidth) maxWidth = testNames[i].length;
-    var nameColumnWidth = maxWidth;
+    var maxNameWidth = 0;
+    for (var i=0; i<testNames.length; i++) if (testNames[i].length > maxNameWidth) maxNameWidth = testNames[i].length;
+    var nameColumnWidth = maxNameWidth;
     var opsColumnWidth = 13;
     var metaColumnWidth = 60;
     var rankColumnWidth = 6;
@@ -631,6 +631,12 @@ function bench( /* options?, */ functions, callback ) {
                 if (opsPerTest != 1) res.avg = res.count * opsPerTest / res.elapsed;
                 results.push({ name: testName, results: res });
                 var baseline = { avg: baselineAvg ? baselineAvg : results[0].results.avg };
+                if (results.length === 1) {
+                    // use narrower columns if possible to save output width
+                    if (res.avg < 1000) opsColumnWidth = 7;
+                    else if (res.avg < 100000) opsColumnWidth = 9;
+                    metaColumnWidth = composeMetaInfo(testName, test, res, baseline).length + 2;
+                }
                 if (isForked) process.send({ err: err, res: res });
                 else reportResult(testName, test, res, baseline);
                 next();
@@ -643,15 +649,20 @@ function bench( /* options?, */ functions, callback ) {
 
     function reportResult( name, test, res, res0 ) {
         var rank = Math.round(1000 * res.avg / res0.avg);
+        var meta = composeMetaInfo(name, test, res, res0);
+        console.log("%s%s %s ops/sec %s%s%s %s",
+            padRight(name, ' ', nameColumnWidth), spacer, padLeft(number_format(res.avg >>> 0), ' ', opsColumnWidth),
+            padRight(meta, ' ', metaColumnWidth),
+            '',
+            padLeft('' + rank, ' ', rankColumnWidth),
+            str_repeat(bargraphStr, Math.round(5 * rank / 1000)));
+    }
+
+    function composeMetaInfo( name, test, res, res0 ) {
         var meta = util.format("(%d runs of %s calls in %s out of %s sec, +/- %s%%)",
             res.runs, number_scale(res.nloops), formatFloat(res.elapsed, 3), formatFloat(res.duration, 3),
             formatFloat((res.max - res.min)/2/res.avg * 100, 2)
         );
-        console.log("%s%s %s ops/sec %s%s%s %s",
-            padRight(name, ' ', nameColumnWidth), spacer, padLeft(number_format(res.avg >>> 0), ' ', opsColumnWidth),
-            padRight(meta, ' ', metaColumnWidth),
-            spacer,
-            padLeft('' + rank, ' ', rankColumnWidth),
-            str_repeat(bargraphStr, Math.round(5 * rank / 1000)));
+        return meta;
     }
 }

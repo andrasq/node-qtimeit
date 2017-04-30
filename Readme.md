@@ -318,3 +318,4 @@ Todo
 - tiny command line one-liners can run out of cache and give inflated results
 - need a way to force deoptimization so can time deoptimized version too
 - measure and report on mem usage (might be enough to check on each return?)
+- iff installed, measure max rss with `qrusage`, gc activity with `gc-stats`
