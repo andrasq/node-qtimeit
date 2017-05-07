@@ -554,6 +554,11 @@ function bench( /* options?, */ functions, callback ) {
     var visualize = bench.visualize || false;
     var forkTests = bench.forkTests || false;
     var isForked = Boolean(process.env._QTIMEIT_TEST);
+    // TODO: pick verbosity levels, verbosity ctl syntax
+    var verbose = bench.verbose || 2;
+    var showSource = bench.showSource !== undefined ? bench.showSource : verbose >= 4;
+    var showPlatformInfo = bench.showPlatformInfo !== undefined ? bench.showPlatformInfo : verbose >= 1;
+    var showTestInfo = bench.showTestInfo !== undefined ? bench.showTestInfo : verbose >= 3;
     var sys = sysinfo();
     var results = [];
     var tests = {};
@@ -563,16 +568,31 @@ function bench( /* options?, */ functions, callback ) {
 
     if (bench.cpuMhz > 0) sys.cpuMhz = bench.cpuMhz + "[u]";
 
+    if (!isForked && showSource) {
+        // show the source code for each test
+        for (var k in tests) {
+            console.log("%s: %s", k, tests[k]);
+        }
+        console.log("");
+    }
+
     // prepend a canned message to the tests, to allow forked tests to output
     if (bench.preRunMessage && !isForked) console.log(bench.preRunMessage);
 
     // if invoked recursively to run a single test, omit the header
     if (!isForked) {
-        console.log("qtimeit=%s node=%s v8=%s platform=%s kernel=%s up_threshold=%s",
-            sys.qtimeitVersion, sys.nodeVersion, sys.v8Version, sys.platform, sys.kernel, sys.cpuUpThreshold);
-        console.log('arch=%s mhz=%s cpuCount=%s cpu="%s"',
-            sys.arch, sys.cpuMhz, sys.cpuCount, sys.cpu);
-        console.log('name  speed  (stats)  rate');
+        if (showPlatformInfo) {
+            // basic test details, shown unless silent
+            console.log("qtimeit=%s node=%s v8=%s platform=%s kernel=%s up_threshold=%s",
+                sys.qtimeitVersion, sys.nodeVersion, sys.v8Version, sys.platform, sys.kernel, sys.cpuUpThreshold);
+            console.log('arch=%s mhz=%s cpuCount=%s cpu="%s"',
+                sys.arch, sys.cpuMhz, sys.cpuCount, sys.cpu);
+        }
+        if (showTestInfo) {
+            // additional details
+            console.log('timeGoal=%s opsPerTest=%s forkTests=%s',
+                timeGoal, opsPerTest, forkTests);
+        }
     }
 
     var testNames = Object.keys(tests);
@@ -636,6 +656,14 @@ function bench( /* options?, */ functions, callback ) {
                     if (res.avg < 1000) opsColumnWidth = 7;
                     else if (res.avg < 100000) opsColumnWidth = 9;
                     metaColumnWidth = composeMetaInfo(testName, test, res, baseline).length + 2;
+
+                    // write the column titles
+                    if (!isForked) {
+                        var metaTitle = (verbose < 2) ? "" : padRight("(stats)", ' ', metaColumnWidth);
+                        console.log("%s%s %s         %s%s",
+                            padRight("name", ' ', nameColumnWidth), spacer, padLeft("speed", ' ', opsColumnWidth),
+                            metaTitle, padLeft("rate", ' ', rankColumnWidth));
+                    }
                 }
                 if (isForked) process.send({ err: err, res: res });
                 else reportResult(testName, test, res, baseline);
@@ -650,9 +678,10 @@ function bench( /* options?, */ functions, callback ) {
     function reportResult( name, test, res, res0 ) {
         var rank = Math.round(1000 * res.avg / res0.avg);
         var meta = composeMetaInfo(name, test, res, res0);
+        var metaColumn = verbose < 2 ? '' : padRight(meta, ' ', metaColumnWidth);
         console.log("%s%s %s ops/sec %s%s%s %s",
             padRight(name, ' ', nameColumnWidth), spacer, padLeft(number_format(res.avg >>> 0), ' ', opsColumnWidth),
-            padRight(meta, ' ', metaColumnWidth),
+            metaColumn,
             '',
             padLeft('' + rank, ' ', rankColumnWidth),
             str_repeat(bargraphStr, Math.round(5 * rank / 1000)));
