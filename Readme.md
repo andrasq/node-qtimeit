@@ -33,6 +33,8 @@ Examples of a one-off micro benchmark and a benchmark suite
     // #1  93,468,158 ops/sec (31 runs of 5m calls in 1.658 out of 4.373 sec, +/- 2.16%) 1000
     // #2  47,414,812 ops/sec (22 runs of 5m calls in 2.320 out of 4.059 sec, +/- 1.94%) 507
 
+More examples can be found in the [qtimeit overview](https://github.com/andrasq/node-docs/blob/master/qtimeit.md).
+
 
 Api
 ---
