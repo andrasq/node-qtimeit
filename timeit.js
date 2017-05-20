@@ -1,7 +1,7 @@
 /**
  * High-resolution function call timer.
  *
- * Copyright (C) 2014 Andras Radics
+ * Copyright (C) 2014-2017 Andras Radics
  * Licensed under the Apache License, Version 2.0
  *
  * Notes:
@@ -63,18 +63,24 @@ function repeatWhile( test, visitor, callback ) {
     else return callback();
 }
 
+// php str_repeat()
+// 2x faster than str.repeat() for short runs of spaces, and same speed for long runs
+// slightly faster for short non-space runs, 33% slower for long non-space runs
 var _pads = ['', ' ', '  ', '   ', '    ', '     ', '      ', '       ', '        '];
 function str_repeat( str, count ) {
     count = Math.floor(count);
     if (str === ' ' && count <= 8) return _pads[count];
-    var half = Math.floor(count / 2);
 
     switch (count) {
     case 3: return str + str + str; break;
     case 2: return str + str; break;
     case 1: return str; break;
     case 0: return ''; break;
-    default: return str_repeat(str, half) + str_repeat(str, count - half); break;
+    default:
+        var half = Math.floor(count / 2);
+        var s2 = str_repeat(str, half);
+        return (half + half < count) ? s2 + s2 + str : s2 + s2;
+        break;
     }
 }
 
@@ -101,6 +107,7 @@ function formatFloat( value, decimals ) {
     return sign + digits.slice(0, -decimals) + '.' + digits.slice(-decimals);
 }
 
+// php number_format()
 // 12345 => 12,345
 function number_format( value ) {
     value = value + '';
@@ -138,7 +145,7 @@ function timeFunc( n, fn ) {
     for (var i=0; i<n; i++) fn();
     var t2 = fptime();
     return t2 - t1;
-    try { } catch (e) { }
+    try { noop(arguments) } catch (e) { }
 }
 function calibrate( ) {
     var i, t1, t2;
@@ -176,7 +183,7 @@ function calibrate( ) {
     __loopOverhead = timeitTime;
 
     // disable optimization of this function
-    try { } catch (e) { }
+    try { testNoop() } catch (e) { }
     noop(arguments);
 
 /*  // disable inlining of this function
