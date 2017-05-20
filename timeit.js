@@ -303,37 +303,36 @@ function timeit( nloops, f, msg, callback ) {
         return {count: __callCount, elapsed: __duration, wallclock: __t2 - __t1 };
     }
     else {
+        var __t1, __depth;
         maybeCalibrateCb(function() {
-            // if callback is specified, chain the calls to not run them in parallel
-            // run __fn twice to prime the v8 compiler, then run the timed test
             __fn( function() {
-                __fn( function() {
-                    // timed test begins here, called after two runs of __fn
-                    __nleft = nloops;
-                    var __depth = 0;
-                    var __t1 = fptime();
-                    __launchNext();
-                    function __launchNext() {
-                        if (__nleft) {
-                            __nleft -= 1;
-                            __depth += 1;
-                            __callCount += 1;
-                            __fn(__onTestDone);
-                        }
-                        else {
-                            __t2 = fptime();
-                            var __duration = (__t2 - __t1 - (__timerOverhead > 0 ? __timerOverhead : 0) - (__loopOverheadCb * __callCount * 0.000001));
-                            if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
-                            callback(null, __callCount, __duration, __t2 - __t1);
-                        }
-                    }
-                    function __onTestDone() {
-                        if (__depth > 100) { __depth = 0; setImmediate(__launchNext); }
-                        else __launchNext();
-                    }
-                });
+                // timed test begins here, called after __fn has been precompiled
+                __nleft = nloops;
+                __depth = 0;
+                __t1 = fptime();
+                __launchNext();
             });
         });
+
+        function __launchNext() {
+            if (__nleft) {
+                __nleft -= 1;
+                __depth += 1;
+                __callCount += 1;
+                __fn(__onTestDone);
+            }
+            else {
+                __t2 = fptime();
+                var __duration = (__t2 - __t1 - (__timerOverhead > 0 ? __timerOverhead : 0) - (__loopOverheadCb * __callCount * 0.000001));
+                if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
+                callback(null, __callCount, __duration, __t2 - __t1);
+            }
+        }
+        function __onTestDone() {
+            if (__depth > 100) { __depth = 0; setImmediate(__launchNext); }
+            else __launchNext();
+        }
+
     }
 }
 
