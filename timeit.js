@@ -565,6 +565,7 @@ function bench( /* options?, */ functions, callback ) {
     var showSource = bench.showSource !== undefined ? bench.showSource : verbose >= 4;
     var showPlatformInfo = bench.showPlatformInfo !== undefined ? bench.showPlatformInfo : verbose >= 1;
     var showTestInfo = bench.showTestInfo !== undefined ? bench.showTestInfo : verbose >= 3;
+    var showRunDetails = bench.showRunDetails !== undefined ? bench.showRunDetails : true;
     var sys = sysinfo();
     var results = [];
     var tests = {};
@@ -666,6 +667,7 @@ function bench( /* options?, */ functions, callback ) {
                     // write the column titles
                     if (!isForked) {
                         var metaTitle = (verbose < 2) ? "" : padRight("(stats)", ' ', metaColumnWidth);
+                        if (!showRunDetails) metaTitle = '';
                         console.log("%s%s %s         %s%s",
                             padRight("name", ' ', nameColumnWidth), spacer, padLeft("speed", ' ', opsColumnWidth),
                             metaTitle, padLeft("rate", ' ', rankColumnWidth));
@@ -685,6 +687,7 @@ function bench( /* options?, */ functions, callback ) {
         var rank = Math.round(1000 * res.avg / res0.avg);
         var meta = composeMetaInfo(name, test, res, res0);
         var metaColumn = verbose < 2 ? '' : padRight(meta, ' ', metaColumnWidth);
+        if (!showRunDetails) metaColumn = '';
         console.log("%s%s %s ops/sec %s%s%s %s",
             padRight(name, ' ', nameColumnWidth), spacer, padLeft(number_format(res.avg >>> 0), ' ', opsColumnWidth),
             metaColumn,
