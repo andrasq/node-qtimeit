@@ -26,6 +26,7 @@ module.exports.cpuMhz = measureCpuMhz;
 
 var version = require('./package.json').version;
 
+var SILENT = '/* NOOUTPUT */';          // magic output string to silence the output
 var scaling_governor="";
 
 if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
@@ -137,21 +138,19 @@ function reportit( f, nloops, __duration, totalSeconds, msg ) {
 }
 
 
+var __calibrating = false;      // currently calibrating
 var __timerOverhead;            // ms to make 1 fptime call
 var __loopOverhead;             // ms to make 1000k test function calls
 var __loopOverheadCb;           // ms to make 1000k test function calls with callback
-function timeFunc( n, fn ) {
-    var t1 = fptime();
-    for (var i=0; i<n; i++) fn();
-    var t2 = fptime();
-    return t2 - t1;
-    try { noop(arguments) } catch (e) { }
-}
+var _calibrated = false;
 function calibrate( ) {
+    if (_calibrated) return;
+
     var i, t1, t2;
+    var nloops = 4000000;
 
     // turn off calibration for our internal timeit() runs
-    __timerOverhead = -1;
+    __calibrating = true;
 
     // Note: for calibration, x = [1,2,3] runs at 91-92m/s and x = new Array() at 74-75m/s
     // (nb: but "x = [1,2,3]; x" runs at only 87m/s ? Optimizer effects?)
@@ -167,24 +166,33 @@ function calibrate( ) {
     //function testFunc() { count += 1; x = count + count; }
 
     // warm up cache
-    for (i=0; i<2000; i++) fptime();
-    for (var i=0; i<100; i++) timeit(100, testFunc, '/* NOOUTPUT */');
-
-    // calibrate the function calls and the work done in the test function
-    var callTime = timeFunc(4000000, testNoop) / 4;
-    var testWorkTime = timeFunc(4000000, testFunc) / 4 - callTime;
+    for (i=0; i<5000; i++) fptime();
+    timeit(5000, testFunc, '/* NOOUTPUT */');
 
     // time fptime overhead, seconds for one call
-    __timerOverhead = timeFunc(500, function(){ t2 = fptime() }) / 500;
+    var info = timeit(1000, function(){ t2 = fptime(); t2 = fptime(); t2 = fptime(); t2 = fptime(); t2 = fptime(); }, '/* NOOUTPUT */');
+    __timerOverhead = info.wallclock / 1000 / 5;
 
     // time test overhead without callback, per million calls
-    var timeitTime = timeFunc(1, function(){ timeit(4000000, testFunc, '/* NOOUTPUT */') }) / 4;
-    //__loopOverhead = timeitTime - testWorkTime;
-    __loopOverhead = timeitTime;
+    // adjust __loopOverhead to make info.elapsed converge to zero
+    var timings = [];
+    nloops = 1e5;
+    for (var i=0; i<8; i++) {
+        var info = timeit(nloops, testFunc, '/* NOOUTPUT */');
+        if (info.elapsed > -Infinity) timings.push([Math.abs(info.elapsed), __loopOverhead]);
+        __loopOverhead = (info.wallclock) / (nloops / 1e6) - (info.elapsed > -Infinity ? info.elapsed / (nloops / 1e6) / (i+2) : 0);
+    }
+    //var minIdx = 0;
+    //for (var i=0; i<timings.length; i++) if (timings[i][0] <= timings[minIdx][0]) minIdx = i;
+    //__loopOverhead = timings[minIdx][1];
+
+    __calibrating = false;
 
     // disable optimization of this function
     try { testNoop() } catch (e) { }
     noop(arguments);
+
+    _calibrated = true;
 
 /*  // disable inlining of this function
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -196,9 +204,14 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 */
 }
 
+var _calibratedCb;
 function calibrateCb( nloops, cb ) {
     if (nloops < 1000000) nloops = 2000000;
     else if (nloops > 10000000) nloops = 10000000;
+
+    if (_calibratedCb) return cb();
+
+    __calibrating = true;
 
     var savedTimerOverhead = __timerOverhead;
     __timerOverhead = -1;
@@ -212,6 +225,8 @@ function calibrateCb( nloops, cb ) {
         var t2 = fptime();
         __loopOverheadCb = (t2 - t1) / (nloops / 1000000);
         __timerOverhead = savedTimerOverhead;
+        __calibrating = false;
+        _calibratedCb = true;
         cb();
     });
 
