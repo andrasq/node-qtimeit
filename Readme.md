@@ -133,6 +133,11 @@ which will be written to the console before the tests are run.
 The contents of this property are written to stdout before the tests are run.
 See `forkTests` for details.
 
+#### timeit.bench.showRunDetails
+
+Set to `false` to omit the calls, runs and timing details from the results.
+Only the name, ops/sec speed and relative rate are displayed.
+
 ### timeit.fptime( )
 
 Nanosecond-resolution floating-point timestamp from process.hrtime().  The
