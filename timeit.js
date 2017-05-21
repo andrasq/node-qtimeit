@@ -264,6 +264,48 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 */
 }
 
+// return a loop count that will run the testFunc for target seconds
+// If target is an integer, it is already a loop count and will be returned as-is.
+function calibrateLoopCount( target, testFunc, cb ) {
+    var t1, t2, nloops = 1;
+    if (!cb) {
+        if (target % 1 === 0) return target;
+        __calibrating = true;
+        do {
+            var info = timeit(nloops, testFunc, SILENT);
+            nloops = Math.round(nloops * 0.02 / info.wallclock);
+        } while (info.wallclock < 0.02);
+        nloops = Math.round(nloops * target / 0.02);
+        __calibrating = false;
+        return nloops;
+    }
+    else {
+        if (target % 1 === 0) return cb(null, target);
+        var stop = false;
+        __calibrating = true;
+        repeatWhile(
+            function(){
+                return !stop;
+            },
+            function(done) {
+                timeit(nloops, testFunc, SILENT, function(err, count, elapsed, wallclock) {
+                    if (err) return done(err);
+                    nloops = Math.round(nloops * 0.02 / wallclock);
+                    if (wallclock >= 0.02) {
+                        nloops = Math.round(nloops * target / wallclock);
+                        stop = true;
+                    }
+                    done();
+                })
+            },
+            function(err) {
+                __calibrating = false;
+                return setImmediate(cb, err, nloops);
+            }
+        )
+    }
+}
+
 // parse the body into a function (to use as the test function)
 function makeFunction( body ) {
     return Function(body);      // jshint ignore:line
@@ -284,24 +326,12 @@ function timeit( nloops, f, msg, callback ) {
         return { count: 0, elapsed: 0, wallclock: 0 };
     }
 
-    // if the loop count is a decimal, repeat for that many seconds
-    if (nloops % 1 !== 0) {
-        __timedRun = true;
-        __stopTime = nloops; // + t1 later
-        setTimeout(function(){
-            nloops = __callCount;
-            __nleft = 0;
-        }, Math.round(nloops * 1000));
-        nloops = Infinity;
-        // TODO: a timed-duration callback test reports only half the throughput, 92m/s -> 43m/s
-    }
-
     // disable optimization of this function.  Its overhead is subtracted out,
     // and optimization would make the overhead less predictable.
     try { } catch (e) { }
 
     // TODO: try calibrating every run, instead of just once at the very start.
-    if (__timerOverhead === undefined) {
+    if (__timerOverhead === undefined && !__calibrating) {
         // calibrate, then use the measured overhead to re-calibrate more accurately
         calibrate();
         calibrate();
@@ -309,20 +339,23 @@ function timeit( nloops, f, msg, callback ) {
 
     function maybeCalibrateCb(cb) {
         // calibrate unless already calibrating
-        if (__timerOverhead >= 0) calibrateCb(nloops < Infinity ? nloops : 4000000, cb);
+        if (!__calibrating) calibrateCb(nloops, cb);
         else cb();
     }
 
+    var elseBlock;
     if (!callback) {
         // node v0.11.x strongly penalizes parsing the function in the timed loop; v0.10 did not.
         // Run the test function once to pre-parse it
         __fn();
 
+        nloops = calibrateLoopCount(nloops, __fn);
+
         __t1 = fptime();
         __stopTime += __t1;
-        for (__i=0; __i<nloops; __i++) {
-            __callCount += 1;
-            __fn();
+        for (__i=0; __i<nloops; __i+=5) {
+            __callCount += 5;
+            __fn(); __fn(); __fn(); __fn(); __fn();
             if ((__callCount & 0xFFF) === 0 && __timedRun && fptime() >= __stopTime) break;
         }
         __t2 = fptime();
@@ -330,22 +363,27 @@ function timeit( nloops, f, msg, callback ) {
         var __duration = (__t2 - __t1 - __timerOverhead - (__loopOverhead * __callCount * 0.000001));
         if (__timedRun) {
             // TODO: when timed, a 92m/s test is reported as running 20-30% slower than when counted
-            var timedRunOverhead = (Math.floor(__callCount / 4096) + 1) * __timerOverhead;
+            var timedRunOverhead = (Math.floor(__callCount / 4096)) * __timerOverhead;
             __duration -= timedRunOverhead;
         }
         if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
 
         return {count: __callCount, elapsed: __duration, wallclock: __t2 - __t1 };
     }
-    else {
+    else (elseBlock = function(){
         var __t1, __depth;
         maybeCalibrateCb(function() {
-            __fn( function() {
-                // timed test begins here, called after __fn has been precompiled
-                __nleft = nloops;
-                __depth = 0;
-                __t1 = fptime();
-                __launchNext();
+            calibrateLoopCount(nloops, __fn, function(err, ret) {
+                nloops = ret;
+                __fn( function() {
+                    // timed test begins here, called after __fn has been precompiled
+                    __nleft = nloops;
+                    __depth = 0;
+                    __t1 = fptime();
+                    __launchNext();
+                    try { } catch(e) { }
+                });
+                try { } catch(e) { }
             });
         });
 
@@ -354,21 +392,27 @@ function timeit( nloops, f, msg, callback ) {
                 __nleft -= 1;
                 __depth += 1;
                 __callCount += 1;
+                // disable optimization in the test invoker, to make overhead more stable
                 __fn(__onTestDone);
             }
             else {
                 __t2 = fptime();
                 var __duration = (__t2 - __t1 - (__timerOverhead > 0 ? __timerOverhead : 0) - (__loopOverheadCb * __callCount * 0.000001));
+                if (__timedRun) {
+                    var timedRunOverhead = (Math.floor(__callCount / 4096)) * __timerOverhead;
+                    __duration -= timedRunOverhead;
+                }
                 if (msg !== '/* NOOUTPUT */') reportit(f, __callCount, __duration, (__t2 - __t1), msg ? msg : "");
                 callback(null, __callCount, __duration, __t2 - __t1);
             }
+            try { } catch(e) { }
         }
         function __onTestDone() {
             if (__depth > 100) { __depth = 0; setImmediate(__launchNext); }
             else __launchNext();
+            try { } catch(e) { }
         }
-
-    }
+    })();
 }
 
 function runit( repeats, nloops, nItemsPerRun, name, f, callback ) {
