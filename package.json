@@ -11,5 +11,10 @@
   },          
   "keywords": [
     "timing", "bench", "test", "benchmark", "speed", "Andras", "performance", "accurate", "quick"
-  ]
+  ],
+  "scripts": {
+    "test": "qnit -t 10000 test-*",
+    "coverage": "nyc --reporter text --reporter lcov npm test",
+    "clean": "rm -rf .nyc_output coverage"
+  }
 }
