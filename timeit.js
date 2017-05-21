@@ -330,7 +330,6 @@ function timeit( nloops, f, msg, callback ) {
     // and optimization would make the overhead less predictable.
     try { } catch (e) { }
 
-    // TODO: try calibrating every run, instead of just once at the very start.
     if (__timerOverhead === undefined && !__calibrating) {
         // calibrate, then use the measured overhead to re-calibrate more accurately
         calibrate();
@@ -362,7 +361,6 @@ function timeit( nloops, f, msg, callback ) {
 
         var __duration = (__t2 - __t1 - __timerOverhead - (__loopOverhead * __callCount * 0.000001));
         if (__timedRun) {
-            // TODO: when timed, a 92m/s test is reported as running 20-30% slower than when counted
             var timedRunOverhead = (Math.floor(__callCount / 4096)) * __timerOverhead;
             __duration -= timedRunOverhead;
         }
@@ -393,6 +391,7 @@ function timeit( nloops, f, msg, callback ) {
                 __depth += 1;
                 __callCount += 1;
                 // disable optimization in the test invoker, to make overhead more stable
+                // results are unrealistically low (by 50%) if not in try-catch
                 __fn(__onTestDone);
             }
             else {
@@ -546,46 +545,6 @@ function bench( /* options?, */ functions, callback ) {
         }
     }
 
-    function calibrateLoopCount( test, cb ) {
-        var loops = [ 1, 5, 10, 50, 100, 500, 1000, 5e3, 1e4, 5e4, 1e5, 5e5, 1e6, 5e6, 1e7, 5e7 ];
-// TODO: instead of trying counts, time nloops = 1, estimate 0.05 sec, time estimated .01 sec, re-estimate
-        var t1, t2, nloops = 1, ret;
-        if (!cb) {
-            timeit(1, test, '/* NOOUTPUT */');
-            for (var i=0; i<loops.length; i++) {
-                nloops = loops[i];
-                t1 = timeit.fptime();
-                ret = timeit(nloops, test, '/* NOOUTPUT */');
-                t2 = timeit.fptime();
-                var duration = t2 - t1;
-                if (ret.elapsed > 0.01 || duration > 0.01) break;
-            }
-            return 10 * nloops;
-        }
-        else {
-            var i = 0;
-            timeit(10, test, '/* NOOUTPUT */', function(err) {
-                repeatWhile(
-                    function() {
-                        return (i < loops.length);
-                    },
-                    function(next) {
-                        nloops = loops[i];
-                        // note that callbacked timeit re-calibrates on each call, so picking a loop count is slow (2 sec)
-                        timeit(nloops, test, '/* NOOUTPUT */', function(err, callCount, cpuTime, realTime) {
-                            i++;
-                            // fake an error when time to stop the repeatWhile loop
-                            next(cpuTime > 0.02 || realTime > 0.05);
-                        })
-                    },
-                    function(err) {
-                        // callbacked runs have higher overhead, amortize with more loops
-                        cb(null, 4 * nloops);
-                    }
-                );
-            });
-        }
-    }
 
     function runTest( timeGoal, test, cb ) {
         var startTime = timeit.fptime();
@@ -594,7 +553,7 @@ function bench( /* options?, */ functions, callback ) {
 
         if (!cb) {
             var tm = timeit.fptime(); test(); tm = timeit.fptime() - tm;
-            var nloops = calibrateLoopCount(test);
+            var nloops = calibrateLoopCount(timeGoal, test);
             endTime = timeit.fptime() + timeGoal;
             do {
                 var result = timeit(nloops, test, "/* NOOUTPUT */");
@@ -607,7 +566,7 @@ function bench( /* options?, */ functions, callback ) {
             return digest;
         }
         else {
-            calibrateLoopCount(test, function(err, nloops) {
+            calibrateLoopCount(timeGoal, test, function(err, nloops) {
                 if (err) return cb(err);
                 endTime = timeit.fptime() + timeGoal;
                 repeatWhile(

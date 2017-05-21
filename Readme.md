@@ -309,6 +309,8 @@ Related Work
 ChangeLog
 ---------
 
+- 0.19.0 - faster and more accurate timed loop calibration, better overhead calibration,
+           more consistent results, much more accurate timed test durations
 - 0.18.0 - `bench.forkTests`, `bench.preRunMessage` settings, back-filled this changelog
 - 0.17.0 - `bench.baselineAvg` setting
 - 0.16.0 - `bench.visualize` setting
