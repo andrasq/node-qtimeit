@@ -206,33 +206,53 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 var _calibratedCb;
 function calibrateCb( nloops, cb ) {
-    if (nloops < 1000000) nloops = 2000000;
-    else if (nloops > 10000000) nloops = 10000000;
 
     if (_calibratedCb) return cb();
 
     __calibrating = true;
 
-    var savedTimerOverhead = __timerOverhead;
-    __timerOverhead = -1;
-    for (var i=0; i<1000; i++) timeit(10, function(cb){ cb() }, '/* NOOUTPUT */', function(){});
+    var x;
+    function testFunc(cb) {
+        // adding a side-effect to the test function results in more accurate timings;
+        // it does not cancel out the side-effect of the tested function.
+        // TODO: this seems wrong, see how to get rid of this side-effect here.
+        x = cb();
+    }
 
-    // time test overhead with callback, per million calls
-    var t1 = fptime();
-    timeit(nloops, function(cb){ cb() }, '/* NOOUTPUT */', function(){
+    // warm up cache
+    for (var i=0; i<5000; i++) fptime();
+
+// FIXME: if warming up cache w/ testFunc, understimates by 20%
+// compared to warming up testFunc invoked from a wrapper
+    //timeit(5000, testFunc, '/* NOOUTPUT */', function(err, count, elapsed, wallclock) {
+    timeit(50000, function wrapper(cb) { testFunc(cb) }, '/* NOOUTPUT */', function(err, count, elapsed, wallclock) {
+        nloops = 1e5;
         // note: let the test func run 0.1 sec or more, else overstimates 92m/s rate by 25%
-        // Note: passing a separately defined testFunc to timeit here _under_estimates the rate by 75%.
-        var t2 = fptime();
-        __loopOverheadCb = (t2 - t1) / (nloops / 1000000);
-        __timerOverhead = savedTimerOverhead;
-        __calibrating = false;
-        _calibratedCb = true;
-        cb();
-    });
+        var nloops = Math.round(0.10 / (wallclock - __timerOverhead) * 5000);
 
-    // disable optimization of this function
-    try { } catch (e) { }
-    noop(arguments);
+        var repeatCount = 0;
+        repeatWhile(
+            function(){
+                return repeatCount++ < 8;
+            },
+            function(done) {
+                // time test overhead with callback, per million calls
+                timeit(nloops, testFunc, '/* NOOUTPUT */', function(err, count, elapsed, wallclock){
+                    // adjust __loopOverheadCb to make elapsed converge to zero
+                    var adjust = elapsed > -Infinity ? elapsed / (nloops / 1e6) / (repeatCount-1+2) : 0;
+                    __loopOverheadCb = (wallclock - __timerOverhead) / (nloops / 1e6) - adjust;
+                    done();
+                    try { } catch(e) { }
+                });
+                try { } catch (e) { }
+            },
+            function() {
+                __calibrating = false;
+                _calibratedCb = true;
+                setImmediate(cb);
+            }
+        )
+    });
 
 /*  // disable inlining of this function
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
