@@ -602,7 +602,7 @@ function bench( /* options?, */ functions, callback ) {
                         var digest = computeDigest(results);
                         digest.duration = duration;
                         digest.nloops = nloops;
-                        cb(null, digest);
+                        setImmediate(cb, null, digest);
                     }
                 )
             });
@@ -731,7 +731,7 @@ if (metaColumnWidth < 60) metaColumnWidth = 60;
                 }
                 if (isForked) process.send({ err: err, res: res });
                 else reportResult(testName, test, res, baseline);
-                next();
+                callback ? setImmediate(next) : next();
             }
         },
         function(err) {
