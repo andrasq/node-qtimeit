@@ -119,10 +119,24 @@ function number_format( value ) {
     return s;
 }
 
+// return the value rounded to 3 digits of precision
+function number_precision3( value ) {
+    var pad = 0;
+    while (value >= 1000) {
+        value /= 10;
+        pad += 1;
+    }
+    if (value >= 100) return ('' + (value + .5)).slice(0, 4) + str_repeat('0', pad);   // 123.4 => '123'
+    if (value >= 10) return ('' + (value + .05)).slice(0, 4);   // 12.34 => '12.3'
+    if (value >= 1) return ('' + (value + .005)).slice(0, 4);   // 1.234 => '1.23'
+    return ('' + value + .0005).slice(1, 5);                    // .1234 => '.123'
+}
+
 // 100000 => 100k
 function number_scale( value ) {
-    if (value > 1000000) return (value / 1000000) + 'm';
-    if (value > 1000) return (value / 1000) + 'k';
+    if (value > 1e9) return number_precision3(value / 1e9) + 'g';
+    if (value > 1e6) return number_precision3(value / 1e6) + 'm';
+    if (value > 1e3) return number_precision3(value / 1e3) + 'k';
     return value;
 }
 
@@ -704,6 +718,7 @@ function bench( /* options?, */ functions, callback ) {
                     if (res.avg < 1000) opsColumnWidth = 7;
                     else if (res.avg < 100000) opsColumnWidth = 9;
                     metaColumnWidth = composeMetaInfo(testName, test, res, baseline).length + 2;
+if (metaColumnWidth < 60) metaColumnWidth = 60;
 
                     // write the column titles
                     if (!isForked) {
