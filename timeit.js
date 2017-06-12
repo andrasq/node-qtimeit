@@ -229,6 +229,7 @@ function calibrateCb( nloops, cb ) {
         nloops = 1e5;
         // note: let the test func run 0.1 sec or more, else overstimates 92m/s rate by 25%
         var nloops = Math.round(0.10 / (wallclock - __timerOverhead) * 5000);
+        if (nloops <= 0) nloops = 1;
 
         var repeatCount = 0;
         repeatWhile(
@@ -276,6 +277,7 @@ function calibrateLoopCount( target, testFunc, cb ) {
             nloops = Math.round(nloops * 0.02 / info.wallclock);
         } while (info.wallclock < 0.02);
         nloops = Math.round(nloops * target / 0.02);
+        if (nloops <= 0) nloops = 1;
         __calibrating = false;
         return nloops;
     }
@@ -300,6 +302,7 @@ function calibrateLoopCount( target, testFunc, cb ) {
             },
             function(err) {
                 __calibrating = false;
+                if (nloops <= 0) nloops = 1;
                 return setImmediate(cb, err, nloops);
             }
         )
@@ -530,7 +533,7 @@ function bench( /* options?, */ functions, callback ) {
                 if (rate > max) max = rate;
             }
             else {
-                console.log("negative runtime not summed");
+                // console.log("negative runtime not summed");
             }
         }
         var avg = count / elapsed;
