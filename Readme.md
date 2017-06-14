@@ -138,6 +138,14 @@ See `forkTests` for details.
 Set to `false` to omit the calls, runs and timing details from the results.
 Only the name, ops/sec speed and relative rate are displayed.
 
+#### timeit.bench.showTestInfo
+
+Whether to include a line with the test configuration in the bench banner.
+
+#### timeit.bench.bargraphScale
+
+How many `>>>` to print per every 1000 rank.  Default 5.
+
 ### timeit.fptime( )
 
 Nanosecond-resolution floating-point timestamp from process.hrtime().  The
@@ -309,6 +317,7 @@ Related Work
 ChangeLog
 ---------
 
+- 0.21.0 - `bench.bargraphScale` control
 - 0.20.0 - chop up repeatWhile call stack if used async, run test loops at least once,
            guard against Nan rank, do not draw overlong rank bars, show just 3 sig figs
 - 0.19.0 - faster and more accurate timed loop calibration, better overhead calibration,

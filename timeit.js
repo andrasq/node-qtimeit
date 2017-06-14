@@ -621,6 +621,7 @@ function bench( /* options?, */ functions, callback ) {
     var showPlatformInfo = bench.showPlatformInfo !== undefined ? bench.showPlatformInfo : verbose >= 1;
     var showTestInfo = bench.showTestInfo !== undefined ? bench.showTestInfo : verbose >= 3;
     var showRunDetails = bench.showRunDetails !== undefined ? bench.showRunDetails : true;
+    var bargraphScale = bench.bargraphScale || 5;
     var sys = sysinfo();
     var results = [];
     var tests = {};
@@ -745,14 +746,14 @@ if (metaColumnWidth < 60) metaColumnWidth = 60;
         var meta = composeMetaInfo(name, test, res, res0);
         var metaColumn = verbose < 2 ? '' : padRight(meta, ' ', metaColumnWidth);
         if (!showRunDetails) metaColumn = '';
-        var maxGraphRank = bargraphStrLimit / 5 * 1000;
+        var maxGraphRank = bargraphStrLimit / bargraphScale * 1000;
         var graphRank = !isFinite(rank) ? 0 : rank > maxGraphRank ? maxGraphRank + 1 : rank;
         console.log("%s%s %s ops/sec %s%s%s %s",
             padRight(name, ' ', nameColumnWidth), spacer, padLeft(number_format(res.avg >>> 0), ' ', opsColumnWidth),
             metaColumn,
             '',
             padLeft('' + rank, ' ', rankColumnWidth),
-            padRight('', '>', Math.round(5 * graphRank / 1000)) + (graphRank > maxGraphRank ? '+' : ''));
+            padRight('', '>', Math.round(bargraphScale * graphRank / 1000)) + (graphRank > maxGraphRank ? '+' : ''));
     }
 
     function composeMetaInfo( name, test, res, res0 ) {
