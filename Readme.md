@@ -319,7 +319,7 @@ ChangeLog
 
 - 0.21.0 - `bench.bargraphScale` control
 - 0.20.0 - chop up repeatWhile call stack if used async, run test loops at least once,
-           guard against Nan rank, do not draw overlong rank bars, show just 3 sig figs
+           guard against NaN rank, do not draw overlong rank bars, show just 3 sig figs
 - 0.19.0 - faster and more accurate timed loop calibration, better overhead calibration,
            more consistent results, much more accurate timed test durations
 - 0.18.0 - `bench.forkTests`, `bench.preRunMessage` settings, back-filled this changelog
