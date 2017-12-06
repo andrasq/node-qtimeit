@@ -317,6 +317,8 @@ Related Work
 ChangeLog
 ---------
 
+- 0.21.1 - break up `repeatWhile` call stack, fixes heap consumption and wrong fractional
+           bench durations
 - 0.21.0 - `bench.bargraphScale` control
 - 0.20.0 - chop up repeatWhile call stack if used async, run test loops at least once,
            guard against NaN rank, do not draw overlong rank bars, show just 3 sig figs
@@ -339,4 +341,3 @@ Todo
 - need a way to force deoptimization so can time deoptimized version too
 - measure and report on mem usage (might be enough to check on each return?)
 - iff installed, measure max rss with `qrusage`, gc activity with `gc-stats`
-- fixme: non-integer timeGoal runs for wrong duration

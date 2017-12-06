@@ -53,15 +53,20 @@ function cputime() {
     return millis;
 }
 
+var repeatCount = 0;
 function repeatWhile( test, visitor, callback ) {
-    if (test()) {
-        visitor(function(err){
-            if (err) return callback(err);
-            // self-recurse to work with both sync and async tests
-            else repeatWhile(test, visitor, callback);
-        });
-    }
-    else return callback();
+    var repeat = function() { repeatWhile(test, visitor, callback) };
+    (function _loop() {
+        if (test()) {
+            visitor(function(err){
+                if (err) return callback(err);
+                // self-recurse to work with both sync and async tests
+                else if (++repeatCount & 8) _loop(test, visitor, callback);
+                else setImmediate(repeat);
+            });
+        }
+        else return callback();
+    })();
 }
 
 // php str_repeat()
@@ -495,6 +500,7 @@ function measureCpuMhz( ) {
         return cycles / ms / 1000;
     }
     catch (err) {
+        console.log("unable to measure cpu mhz:", err);
         return false;
     }
 }
