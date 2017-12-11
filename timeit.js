@@ -53,20 +53,17 @@ function cputime() {
     return millis;
 }
 
-var repeatCount = 0;
+// repeatWhile must be a synchronous call to be serializable.
+// If the call stack grows too deep, use callbacks.
 function repeatWhile( test, visitor, callback ) {
-    var repeat = function() { repeatWhile(test, visitor, callback) };
-    (function _loop() {
-        if (test()) {
-            visitor(function(err){
-                if (err) return callback(err);
-                // self-recurse to work with both sync and async tests
-                else if (++repeatCount & 8) _loop(test, visitor, callback);
-                else setImmediate(repeat);
-            });
-        }
-        else return callback();
-    })();
+    if (test()) {
+        visitor(function(err){
+            if (err) return callback(err);
+            // self-recurse to work with both sync and async tests
+            else repeatWhile(test, visitor, callback);
+        });
+    }
+    else return callback();
 }
 
 // php str_repeat()

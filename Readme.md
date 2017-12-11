@@ -317,6 +317,7 @@ Related Work
 ChangeLog
 ---------
 
+- 0.21.2 - revert 0.21.1, repeatWhile must be a synchronous call
 - 0.21.1 - break up `repeatWhile` call stack, fixes heap consumption and wrong fractional
            bench durations
 - 0.21.0 - `bench.bargraphScale` control
