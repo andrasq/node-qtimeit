@@ -1,7 +1,7 @@
 /**
  * High-resolution function call timer.
  *
- * Copyright (C) 2014-2017 Andras Radics
+ * Copyright (C) 2014-2018 Andras Radics
  * Licensed under the Apache License, Version 2.0
  *
  * Notes:
@@ -488,27 +488,39 @@ function measureCpuMhz( ) {
     ];
     try {
         var results = child_process.spawnSync("/usr/bin/perf", argv);
+        if (results.error || results.status !== 0) {
+            // could not measure with /usr/bin/perf, hope the os can measure for us
+            return measureOsSpeed();
+        }
         var lines = results.stderr.toString().replace(',', '').split('\n');
         var cycles, ms;
         for (var i=0; i<lines.length; i++) {
             if (lines[i].indexOf(' cycles ') > 0) cycles = parseFloat(lines[i].replace(/,/g, ''));
             if (lines[i].indexOf(' task-clock ') > 0) ms = parseFloat(lines[i]);
         }
-        return cycles / ms / 1000;
+        return Math.round(cycles / ms / 1000 + .5);
     }
     catch (err) {
         console.log("unable to measure cpu mhz:", err);
         return false;
     }
-}
 
-function sysinfo( ) {
+    function measureOsSpeed() {
+        // burn 100ms of cpu to raise core speed to its max, then see what linux reports
+        var tm = Date.now() + 100;
+        do { var x; for (var i=0; i<100000; i++) x += i; } while (Date.now() < tm);
+        return maxSpeed(os.cpus()) + "[os]";
+    }
+
     function maxSpeed(cpus) {
         var mhz = 0;
         for (var i=0; i<cpus.length; i++) if (cpus[i].speed > mhz) mhz = cpus[i].speed;
         return mhz;
     }
-    var cpuMhz = Math.round(measureCpuMhz() + .5) || maxSpeed(os.cpus())+"[os]";
+}
+
+function sysinfo( ) {
+    var cpuMhz = measureCpuMhz();
     var up_threshold_file = "/sys/devices/system/cpu/cpufreq/ondemand/up_threshold";
     var scaling_governor_file = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor";
     // up_threshold does not exists if ~/cpu/cpu*/cpufreq/scaling_governor is all "performance"
