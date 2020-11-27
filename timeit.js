@@ -40,7 +40,7 @@ function noop(x) {
 function fptime() {
     // note: how trustworthy is hrtime?
     //return Date.now() * 0.001;
-    var t = process.hrtime();
+    var t = process.hrtime ? process.hrtime() : [Date.now() / 1000, 0];
     return t[0] + t[1] * 0.000000001;
 }
 
