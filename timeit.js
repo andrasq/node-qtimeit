@@ -503,7 +503,7 @@ function measureCpuMhz( ) {
         return Math.round(cycles / ms / 1000 + .5);
     }
     catch (err) {
-        console.log("unable to measure cpu mhz:", err);
+        console.log("unable to measure cpu mhz:", err.message);
         return measureOsSpeed();
     }
 
