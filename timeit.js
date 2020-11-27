@@ -1,7 +1,7 @@
 /**
  * High-resolution function call timer.
  *
- * Copyright (C) 2014-2018 Andras Radics
+ * Copyright (C) 2014-2020 Andras Radics
  * Licensed under the Apache License, Version 2.0
  *
  * Notes:
@@ -29,7 +29,8 @@ var version = require('./package.json').version;
 var SILENT = '/* NOOUTPUT */';          // magic output string to silence the output
 var scaling_governor="";
 
-if (!global.setImmediate) global.setImmediate = function(a, b, c) { process.nextTick(a, b, c) };
+var setImmediate = global.setImmediate || function(fn, a, b, c) { process.nextTick(function() { fn(a, b, c) }) }
+// NOTE: node-v0.10 does not like recursive nextTick
 
 var noopSideEffect = 0;
 function noop(x) {
@@ -426,7 +427,7 @@ function timeit( nloops, f, msg, callback ) {
             try { } catch(e) { }
         }
         function __onTestDone() {
-            if (__depth > 100) { __depth = 0; setImmediate(__launchNext); }
+            if (__depth > 20) { __depth = 0; setImmediate(__launchNext); }
             else __launchNext();
             try { } catch(e) { }
         }
@@ -488,6 +489,7 @@ function measureCpuMhz( ) {
     ];
     try {
         var results = child_process.spawnSync("/usr/bin/perf", argv);
+        if (!results || !results.stderr) throw new Error("/usr/bin/perf error");
         if (results.error || results.status !== 0) {
             // could not measure with /usr/bin/perf, hope the os can measure for us
             return measureOsSpeed();
@@ -627,7 +629,7 @@ function bench( /* options?, */ functions, callback ) {
     var timeGoal = bench.timeGoal || 4.00;
     var baselineAvg = bench.baselineAvg || undefined;
     var opsPerTest = bench.opsPerTest || 1;
-    var visualize = bench.visualize || false;
+    var visualize = bench.visualize || true;
     var forkTests = bench.forkTests || false;
     var isForked = Boolean(process.env._QTIMEIT_TEST);
     // TODO: pick verbosity levels, verbosity ctl syntax
@@ -635,7 +637,7 @@ function bench( /* options?, */ functions, callback ) {
     var showSource = bench.showSource !== undefined ? bench.showSource : verbose >= 4;
     var showPlatformInfo = bench.showPlatformInfo !== undefined ? bench.showPlatformInfo : verbose >= 1;
     var showTestInfo = bench.showTestInfo !== undefined ? bench.showTestInfo : verbose >= 3;
-    var showRunDetails = bench.showRunDetails !== undefined ? bench.showRunDetails : true;
+    var showRunDetails = bench.showRunDetails !== undefined ? bench.showRunDetails : false;
     var bargraphScale = bench.bargraphScale || 5;
     var sys = sysinfo();
     var results = [];
