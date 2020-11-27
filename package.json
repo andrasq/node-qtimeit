@@ -1,6 +1,6 @@
 {
   "name": "qtimeit",
-  "version": "0.22.2-dev",
+  "version": "0.22.2",
   "description": "simple, accurate micro-benchmarking toolkit",
   "main": "index.js",
   "license": "Apache-2.0",
