@@ -489,7 +489,9 @@ function measureCpuMhz( ) {
     ];
     try {
         var results = child_process.spawnSync("/usr/bin/perf", argv);
-        if (!results || !results.stderr || results.stderr.indexOf('not found') >= 0) throw new Error("/usr/bin/perf error");
+        if (!results || String(results.stderr).indexOf(' cycles ') < 0) {
+            throw new Error("/usr/bin/perf error");
+        }
         if (results.error || results.status !== 0) {
             // could not measure with /usr/bin/perf, hope the os can measure for us
             return measureOsSpeed();
