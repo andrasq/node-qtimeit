@@ -317,7 +317,7 @@ Related Work
 ChangeLog
 ---------
 
-- 0.22.1 - fix nextTick so can run with node-v0.8
+- 0.22.1 - fix nextTick so can run with node-v0.8, report os speed if /usr/bin/perf fails
 - 0.22.0 - make visualize=true,showRunDetails=false the default
 - 0.21.4 - use nextTick if no setImmediate
 - 0.21.3 - fix cpuMhz to fall back to os.cpus()[i].speed if /usr/bin/perf fails
